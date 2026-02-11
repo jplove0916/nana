@@ -37,6 +37,7 @@
         #loaded-text { font-size: 11px; font-weight: 500; margin-right: 8px; word-break: break-all; white-space: normal; line-height: 1.1; }
         #close-loaded { cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; flex-shrink: 0; color: #adb5bd; margin-top: -2px; }
         
+        /* 저장소 스타일 */
         .save-box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #27ae60; box-sizing: border-box; }
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
         .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: flex-start; cursor: pointer; position: relative; background: #fff; box-sizing: border-box; overflow: hidden; }
@@ -188,7 +189,6 @@
         const data = {};
         ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; });
         data['lastField'] = lastField;
-        // [복구 포인트] 불러옴 상태 및 텍스트 정보 추가 보존
         data['currentLoadedId'] = currentLoadedId;
         data['loadedText'] = document.getElementById('loaded-text').innerText;
         localStorage.setItem('nanaCalcData', JSON.stringify(data));
@@ -202,7 +202,6 @@
                 if (id === 'lastField') { lastField = data[id]; }
                 else if (id === 'currentLoadedId') { currentLoadedId = data[id]; }
                 else if (id === 'loadedText') {
-                    // [복구 포인트] 창을 다시 열었을 때 불러옴 표시바를 다시 노출
                     if (currentLoadedId) {
                         document.getElementById('loaded-text').innerText = data[id];
                         document.getElementById('loaded-container').style.display = "flex";
@@ -299,17 +298,23 @@
         if (lastField === 'price' && fixedPrice > 0) {
             finalPriceKrw = fixedPrice;
             actualMargin = (fixedPrice * bufferRate) - expenseSum;
+            // [복구 1] 판매가 모드일 때 우측 상단 분기점 위에 손해/마진 실시간 표시
+            const marginLabel = actualMargin < 0 ? "손해" : "예상 마진";
+            const marginColor = actualMargin < 0 ? "#d32f2f" : "#2e7d32";
+            bepInfo.innerHTML = `<span style="color:${marginColor}; font-size:12px;">${marginLabel}: $${(actualMargin/ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)</span><br><span style="color:#e65100; font-size:12px;">분기점: $${bepUsd.toFixed(2)} (${Math.round(bepKrw).toLocaleString()}원)</span>`;
         } else {
             finalPriceKrw = (expenseSum + margin) / bufferRate;
             actualMargin = margin;
+            // [복구 2] 마진 모드일 때 분기점만 우측에 표시
+            bepInfo.innerHTML = `<span style="color:#e65100; font-size:13px;">분기점: $${bepUsd.toFixed(2)} (${Math.round(bepKrw).toLocaleString()}원)</span>`;
         }
 
         const actualMarginUsd = actualMargin / ex;
         const finalUsd = finalPriceKrw / ex;
 
+        // [복구 3] 결과창 내 중앙 마진 정보 표시 (달러/원화 병기)
         resMarginInfo.style.color = (actualMargin < 0) ? "#d32f2f" : "#2e7d32";
         resMarginInfo.innerText = (actualMargin < 0 ? "손해: $" : "예상 마진: $") + actualMarginUsd.toFixed(2) + " (" + Math.round(actualMargin).toLocaleString() + "원)";
-        bepInfo.innerHTML = `<span style="color:#e65100; font-size:13px;">분기점: $${bepUsd.toFixed(2)} (${Math.round(bepKrw).toLocaleString()}원)</span>`;
 
         const resPriceEl = document.getElementById('resPrice');
         resPriceEl.style.color = (finalPriceKrw <= bepKrw + 1) ? "#d32f2f" : "#000";
@@ -319,6 +324,7 @@
         resultArea.style.display = 'block';
     }
 
+    /* [탭 전환 및 기타 기능 - 불변] */
     function switchTab(tab) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
