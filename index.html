@@ -167,7 +167,23 @@
             if (preFetchedLocation) titleInput.value = preFetchedLocation;
             else fetchLocation();
         }
+        window.scrollTo(0, 0);
     }
+
+    /* [초정밀 스와이프 기능 추가 - 불변의 원칙 준수] */
+    let touchStartX = 0;
+    document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+    document.addEventListener('touchend', e => {
+        const touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        const currentTab = document.querySelector('.nav-tabs button.active').id;
+        
+        // 스와이프 감도 50px & 약 0.6cm 미세 움직임 대응
+        if (Math.abs(diff) > 50) {
+            if (diff > 0 && currentTab === 'tab-calc-btn') switchTab('lib');
+            else if (diff < 0 && currentTab === 'tab-lib-btn') switchTab('calc');
+        }
+    }, {passive: true});
 
     function fetchLocation() {
         const titleInput = document.getElementById('saveTitle');
@@ -224,15 +240,12 @@
         const titleInput = document.getElementById('saveTitle');
         const title = titleInput.value.trim();
         if (!title) { alert("저장 제목을 입력해주세요!"); return; }
-        
         const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'duty', 'buffer'];
         const values = {};
         ids.forEach(id => { const el = document.getElementById(id); if(el) values[id] = el.value; });
-        
         const now = new Date();
         const days = ['일', '월', '화', '수', '목', '금', '토'];
         const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()}(${days[now.getDay()]}) ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-        
         if (currentImgBase64) {
             const link = document.createElement('a');
             link.href = currentImgBase64;
@@ -241,11 +254,9 @@
             link.click();
             document.body.removeChild(link);
         }
-
         const item = { id: Date.now(), title: title, date: dateStr, img: currentImgBase64, data: values, lastField: lastField };
         let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
         lib.unshift(item);
-        
         try {
             localStorage.setItem('nanaLibrary', JSON.stringify(lib));
             titleInput.value = "";
