@@ -188,7 +188,6 @@
         const data = {};
         ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; });
         data['lastField'] = lastField;
-        // [복구 포인트] 불러옴 상태 및 텍스트 정보 추가 보존
         data['currentLoadedId'] = currentLoadedId;
         data['loadedText'] = document.getElementById('loaded-text').innerText;
         localStorage.setItem('nanaCalcData', JSON.stringify(data));
@@ -202,7 +201,6 @@
                 if (id === 'lastField') { lastField = data[id]; }
                 else if (id === 'currentLoadedId') { currentLoadedId = data[id]; }
                 else if (id === 'loadedText') {
-                    // [복구 포인트] 창을 다시 열었을 때 불러옴 표시바를 다시 노출
                     if (currentLoadedId) {
                         document.getElementById('loaded-text').innerText = data[id];
                         document.getElementById('loaded-container').style.display = "flex";
