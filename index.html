@@ -342,8 +342,13 @@
                 const { latitude, longitude } = pos.coords;
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=18`);
                 const data = await res.json();
-                preFetchedLocation = data.name || "현재 위치 상품";
-                if (document.getElementById('tab-lib').classList.contains('active')) document.getElementById('saveTitle').value = preFetchedLocation;
+                
+                // 위치 정보 보정 로직
+                preFetchedLocation = data.name || (data.address && data.address.road) || "현재 위치 상품";
+                
+                // [복구 포인트] 획득 즉시 입력창에 반영
+                const titleInput = document.getElementById('saveTitle');
+                if (titleInput) titleInput.value = preFetchedLocation;
             } catch (e) {}
         }, null, { enableHighAccuracy: true, timeout: 5000 });
     }
