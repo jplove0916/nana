@@ -5,25 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>나나 통합 계산기</title>
     <style>
-        /* [UI 스타일 - 불변의 원칙 적용] */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        /* [의장님 전용 UI - 냥냥이 기준 코드 100% 준수] */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
         .nav-tabs button.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .tab-content { display: none; width: 100%; max-width: 320px; }
         .tab-content.active { display: block; }
         .box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #2c3e50; position: relative; box-sizing: border-box; }
+        
+        .history-btns { position: absolute; top: 15px; left: 12px; display: flex; flex-direction: column; gap: 4px; z-index: 101; }
+        .nav-btn { 
+            width: 28px; height: 28px; 
+            background: #ffffff; border: 1px solid #ddd; border-radius: 6px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 12px; cursor: pointer; color: #2c3e50; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease;
+        }
+        .nav-btn:hover { background: #f0f2f5; border-color: #bbb; }
+        .nav-btn:active { transform: scale(0.92); background: #e0e0e0; }
+        .nav-btn:disabled { color: #ccc; cursor: default; background: #f9f9f9; }
+
         h3 { text-align: center; color: #2c3e50; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 18px; }
         .section-title { font-size: 11px; color: #27ae60; font-weight: bold; margin: 12px 0 6px 0; display: flex; align-items: center; }
         .section-title::before { content: "●"; margin-right: 5px; font-size: 7px; }
         label { font-size: 10px; font-weight: bold; color: #444; display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; width: 100%; }
+        
+        .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-appearance: none; }
-        input:focus { border-color: #2c3e50; outline: none; box-shadow: 0 0 5px rgba(44,62,80,0.2); }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; }
+        
+        input[type="text"], input[type="number"] { -webkit-appearance: none; }
+        
+        select { font-weight: 700; color: #000; -webkit-appearance: none; }
         .search-input { border: 2px solid #2c3e50; background: #f9f9f9; font-weight: bold; }
         .dropdown-container { position: relative; }
         .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #2c3e50; border-top: none; border-radius: 0 0 5px 5px; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .custom-list div { padding: 10px; font-size: 13px; border-bottom: 1px solid #eee; cursor: pointer; color: #333; }
+        .custom-list div.highlight-country { background-color: #eafaf1; font-weight: bold; }
+        
         .row { display: flex; gap: 6px; margin-bottom: 8px; align-items: flex-end; }
         .row div { flex: 1; min-width: 0; }
         .result { margin-top: 15px; padding: 12px; border-radius: 10px; display: none; transition: all 0.3s; border: 1px solid #ccc; }
@@ -31,40 +51,35 @@
         .mode-price { background-color: #fffdf0 !important; border: 2px solid #f1c40f !important; }
         .price-tag { font-size: 22px; font-weight: bold; color: #000; text-align: center; display: block; margin: 5px 0; word-break: break-all; }
         .footer-note { margin-top: 15px; font-size: 10px; color: #777; line-height: 1.5; border-top: 1px solid #eee; padding-top: 12px; }
-        
-        #fixedPriceInfo, #bepInfo { display: flex; flex-direction: column; align-items: flex-end; font-weight: bold; text-align: right; line-height: 1.3; color: #000; }
+        #fixedPriceInfo, #bepInfo { display: flex; flex-direction: column; align-items: flex-end; font-weight: bold; text-align: right; line-height: 1.3; }
         #fixedPriceInfo { font-size: 13px; margin-bottom: 5px; }
-        #bepInfo { font-size: 13px; }
+        #bepInfo { font-size: 13px; color: #e65100; }
         .price-sub { font-size: 13px; white-space: nowrap; }
-
         #resMarginInfo { text-align: center; font-size: 15px; font-weight: bold; margin-bottom: 8px; }
-        #loaded-container { position: absolute; top: -10px; right: 5px; display: none; align-items: flex-start; background: #454d55; color: #f8f9fa; padding: 4px 10px; border-radius: 6px; z-index: 100; max-width: 170px; border: 1px solid #343a40; box-shadow: none; }
+        #loaded-container { position: absolute; top: -10px; right: 5px; display: none; align-items: flex-start; background: #454d55; color: #f8f9fa; padding: 4px 10px; border-radius: 6px; z-index: 100; max-width: 170px; border: 1px solid #343a40; }
         #loaded-text { font-size: 11px; font-weight: 500; margin-right: 8px; word-break: break-all; white-space: normal; line-height: 1.1; }
         #close-loaded { cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; flex-shrink: 0; color: #adb5bd; margin-top: -2px; }
         
         .save-box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #27ae60; box-sizing: border-box; }
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
-        .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: flex-start; cursor: pointer; position: relative; background: #fff; box-sizing: border-box; overflow: hidden; }
-        .library-item img { width: 60px; height: 60px; border-radius: 5px; object-fit: cover; margin-right: 12px; flex-shrink: 0; background: #eee; border: 1px solid #ddd; }
-        .library-info { flex: 1; min-width: 0; padding-right: 40px; }
-        .library-title { font-size: 14px; color: #2c3e50; font-weight: bold; word-break: break-all; white-space: normal; line-height: 1.2; margin-bottom: 4px; display: flex; align-items: center; }
-        .library-date { font-size: 15px; color: #444; font-weight: 700; } 
-        .save-btn { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        #preview-container { width: 100%; height: 120px; border: 1px dashed #ccc; margin-top: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 5px; background: #fafafa; }
-        #preview-container img { height: 100%; }
-        .del-btn { position: absolute; right: 8px; top: 8px; color: #ccc; font-size: 20px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; z-index: 5; }
+        .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; box-sizing: border-box; position: relative; min-height: 72px; }
+        .library-item img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; margin-right: 10px; flex-shrink: 0; }
+        .library-info { flex: 1; min-width: 0; }
+        .library-title { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; }
+        .library-date { font-size: 10px; color: #999; }
+        .check-wrapper { width: 35px; display: none; align-items: center; justify-content: center; flex-shrink: 0; margin-right: 5px; }
+        .item-checkbox { width: 18px; height: 18px; cursor: pointer; appearance: none; -webkit-appearance: none; border: 2px solid #ccc; border-radius: 4px; background-color: #fff; position: relative; }
+        .item-checkbox:checked { background-color: #3498db; border-color: #3498db; }
+        .item-checkbox:checked::after { content: '✔'; position: absolute; color: white; font-size: 12px; font-weight: bold; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 
-        #img-modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; }
-        #img-modal img { max-width: 95%; max-height: 85%; border-radius: 8px; }
-        #img-modal .close-modal { position: absolute; top: 20px; right: 20px; color: white; font-size: 35px; font-weight: bold; cursor: pointer; }
+        .unit-selector { display: flex; gap: 8px; align-items: center; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #eee; margin-left: 10px; }
+        .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
+        .unit-label { font-size: 9px; font-weight: bold; color: #555; cursor: pointer; margin-left: -4px; }
     </style>
 </head>
 <body>
 
-<div id="img-modal" onclick="closeModal()">
-    <span class="close-modal">&times;</span>
-    <img id="modal-img" src="">
-</div>
+<div id="img-modal" onclick="closeModal()" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;"><img id="modal-img" src="" style="max-width:95%; max-height:85%; border-radius:8px;"></div>
 
 <div class="nav-tabs">
     <button id="tab-calc-btn" class="active" onclick="switchTab('calc')">계산기</button>
@@ -73,6 +88,11 @@
 
 <div id="tab-calc" class="tab-content active">
     <div class="box">
+        <div class="history-btns">
+            <button class="nav-btn" onclick="goBack()" title="뒤로가기">❮</button>
+            <button class="nav-btn" onclick="goForward()" title="앞으로가기">❯</button>
+        </div>
+
         <div id="loaded-container">
             <span id="loaded-text">불러옴: 없음</span>
             <span id="close-loaded" onclick="unloadItem()">×</span>
@@ -80,45 +100,62 @@
         <h3>⚡ 나나 통합 계산기</h3>
         <div class="row">
             <div style="flex: 1.4;" class="dropdown-container">
-                <label><span>목적지 국가 검색</span><span id="dot_country" class="req-dot">.</span></label>
-                <input type="text" id="countryInput" class="search-input" value="미국 (USA)" onfocus="showList(); this.value=''; this.style.backgroundColor='#fff0f0'; this.style.borderColor='#e74c3c'; doCalc();" oninput="filterList(); saveInputs(); doCalc();" autocomplete="off">
+                <label><span>목적지 국가 검색</span><span id="dot_countryInput" class="req-dot">.</span></label>
+                <input type="text" id="countryInput" class="search-input" value="미국 (USA)" onfocus="clearField(this)" oninput="filterList(); onInputChange();" autocomplete="off">
                 <div id="customList" class="custom-list"></div>
             </div>
             <div>
                 <label><span>적용 환율</span><span id="dot_ex" class="req-dot">.</span></label>
-                <input type="number" id="ex" value="1450" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()">
+                <input type="number" id="ex" value="1450" onfocus="clearField(this)" oninput="onInputChange()">
             </div>
         </div>
         <div class="section-title">기본 수익 설정</div>
         <div class="row">
-            <div><label><span>상품 원가 <small>(원)</small></span><span id="dot_cost" class="req-dot">.</span></label><input type="number" id="cost" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
-            <div><label><span>희망 마진 <small>(원)</small></span><span id="dot_margin" class="req-dot">.</span></label><input type="number" id="margin" value="0" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="updateLast('margin'); saveInputs(); doCalc()"></div>
+            <div><label><span>상품 원가 <small>(원)</small></span><span id="dot_cost" class="req-dot">.</span></label><input type="number" id="cost" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label><span>희망 마진 <small>(원)</small></span><span id="dot_margin" class="req-dot">.</span></label><input type="number" id="margin" value="0" onfocus="clearField(this, 'margin')" oninput="updateLast('margin'); onInputChange();"></div>
         </div>
         <div class="row">
-            <div style="flex: 0.8;"><label><span>희망 판매가 <small>(원)</small></span><span id="dot_fixedPrice" class="req-dot">.</span></label><input type="number" id="fixedPrice" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="updateLast('price'); saveInputs(); doCalc()"></div>
-            <div style="flex: 1.5; display: flex; flex-direction: column; justify-content: flex-end;">
+            <div style="flex: 1.2;">
+                <label style="display: flex; justify-content: flex-start; align-items: center;">
+                    <span>희망 판매가</span>
+                    <div class="unit-selector">
+                        <input type="radio" id="unitKrw" name="priceUnit" value="krw" checked onclick="convertUnitPrice('krw')">
+                        <label for="unitKrw" class="unit-label">원</label>
+                        <input type="radio" id="unitUsd" name="priceUnit" value="usd" onclick="convertUnitPrice('usd')">
+                        <label for="unitUsd" class="unit-label">달러</label>
+                    </div>
+                </label>
+                <input type="number" id="fixedPrice" onfocus="clearField(this, 'price')" oninput="updatePriceInput(this.value); onInputChange();">
+            </div>
+            <div style="flex: 1.1; display: flex; flex-direction: column; justify-content: flex-end;">
                 <div id="fixedPriceInfo"></div>
                 <div id="bepInfo"></div>
             </div>
         </div>
         <div class="section-title">상품 규격 및 배송</div>
         <div class="row">
-            <div style="flex: 1.2;"><label>배송 타입</label><select id="shipType" onchange="saveInputs(); doCalc()"><option value="6000">일반 (/6000)</option><option value="5000">특송 (/5000)</option></select></div>
-            <div><label><span>무게<small>(kg)</small></span><span id="dot_w" class="req-dot">.</span></label><input type="number" id="w" step="0.01" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
+            <div style="flex: 1.2;"><label>배송 타입</label><select id="shipType" onchange="onInputChange()"><option value="6000">일반 (/6000)</option><option value="5000">특송 (/5000)</option></select></div>
+            <div>
+                <label>
+                    <span>무게<small>(kg)</small> <span id="boxGuide" class="size-guide"></span></span>
+                    <span id="dot_w" class="req-dot">.</span>
+                </label>
+                <input type="number" id="w" step="0.01" onfocus="clearField(this)" oninput="onInputChange()">
+            </div>
         </div>
         <div class="row">
-            <div><label>가로<small>(cm)</small></label><input type="number" id="x" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
-            <div><label>세로<small>(cm)</small></label><input type="number" id="y" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
-            <div><label>높이<small>(cm)</small></label><input type="number" id="z" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
+            <div><label>가로<small>(cm)</small></label><input type="number" id="x" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label>세로<small>(cm)</small></label><input type="number" id="y" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label>높이<small>(cm)</small></label><input type="number" id="z" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
         <div class="section-title">기타 부수 비용</div>
         <div class="row">
-            <div><label><span>국내 배송비 <small>(원)</small></span><span id="dot_local" class="req-dot">.</span></label><input type="number" id="local" value="3000" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
-            <div><label><span>포장비 <small>(원)</small></span><span id="dot_pack" class="req-dot">.</span></label><input type="number" id="pack" value="1300" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
+            <div><label><span>국내 배송비 <small>(원)</small></span><span id="dot_local" class="req-dot">.</span></label><input type="number" id="local" value="3000" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label><span>포장비 <small>(원)</small></span><span id="dot_pack" class="req-dot">.</span></label><input type="number" id="pack" value="1000" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
         <div class="row">
-            <div><label>관세 <small>(원/선택)</small></label><input type="number" id="duty" placeholder="0" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
-            <div><label><span>수수료 버퍼 <small>(%)</small></span><span id="dot_buffer" class="req-dot">.</span></label><input type="number" id="buffer" value="20" onfocus="this.value=''; doCalc()" onblur="doCalc()" oninput="saveInputs(); doCalc()"></div>
+            <div><label>관세 <small>(원/선택)</small></label><input type="number" id="duty" placeholder="0" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label><span>수수료 버퍼 <small>(%)</small></span><span id="dot_buffer" class="req-dot">.</span></label><input type="number" id="buffer" value="20" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
         <div id="resultArea" class="result">
             <label id="resTitle" style="color:#2c3e50; display:block; text-align:center; font-size:11px; font-weight:bold;">이베이 판매가</label>
@@ -135,365 +172,362 @@
         <h3>📁 상품 저장소</h3>
         <div id="live-clock"></div>
         <label>상품 저장 제목</label>
-        <input type="text" id="saveTitle" placeholder="위치 분석 중...">
-        <label style="margin-top:10px;">상품 사진</label>
-        <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImg(this)">
-        <button onclick="document.getElementById('photoInput').click()" style="width:100%; padding:10px; font-size:13px; cursor:pointer; background:#f9f9f9; border:1px solid #ccc; border-radius:5px;">📷 사진 찍기 / 갤러리 선택</button>
-        <div id="preview-container">미리보기</div>
-        <button class="save-btn" onclick="saveToLibrary()">이미지저장 / 카톡전송</button>
-        <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+        <input type="text" id="saveTitle" placeholder="상품명을 입력하세요">
+        <div id="preview-container" style="width: 100%; height: 120px; border: 1px dashed #ccc; margin-top: 8px; display: flex; align-items: center; justify-content: center; border-radius: 5px; background: #fafafa; font-size: 12px; color: #999;">미리보기</div>
+        <div class="btn-row" style="display:flex; gap:6px; margin-top:10px;">
+            <button style="flex:1; padding:12px; background:#27ae60; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="capturePhoto()">📷 사진찍기</button>
+            <button style="flex:1; padding:12px; background:#f0f2f5; color:#333; border:1px solid #ccc; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openGallery()">🖼️ 갤러리</button>
+        </div>
+        <input type="file" id="photoCamera" accept="image/*" capture="environment" style="display:none;" onchange="handleImg(this)">
+        <input type="file" id="photoGallery" accept="image/*" style="display:none;" onchange="handleImg(this)">
+        <hr style="margin:20px 0 10px 0; border:0; border-top:1px solid #eee;">
+        <div class="lib-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size: 12px; font-weight: bold; color: #27ae60;">저장 목록</span>
+            <button id="edit-mode-btn" style="font-size: 12px; padding: 4px 10px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="toggleEditMode()">편집</button>
+        </div>
+        <div id="multi-del-row" style="display:none; gap:6px; margin-bottom:10px;">
+            <button style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; flex:1;" onclick="deleteSelected()">선택 삭제</button>
+            <button style="background:#95a5a6; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="toggleEditMode()">취소</button>
+        </div>
         <div id="library-list"></div>
     </div>
 </div>
 
 <script>
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
+    const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
     const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
-    
-    let currentImgBase64 = "";
-    let preFetchedLocation = "";
-    let currentLoadedId = null;
-    let lastField = 'margin';
-    let lastBackup = null; // [추가] 불러오기 전 상태 저장용 백업 변수
 
-    const listEl = document.getElementById('customList');
-    const inputEl = document.getElementById('countryInput');
+    let currentImgBase64 = ""; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null; let isEditMode = false;
+    let historyStack = []; let futureStack = []; let isNavigating = false;
+    let prevUnit = 'krw'; 
+    let preciseKrwValue = 0; // [신규] 원 단위 원본 정밀 값 저장용
 
-    function updateClock() {
-        const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const clockEl = document.getElementById('live-clock');
-        if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    function updateBoxGuide() {
+        const w = parseFloat(document.getElementById('w').value) || 0;
+        const div = parseFloat(document.getElementById('shipType').value) || 6000;
+        const guideEl = document.getElementById('boxGuide');
+        if (w > 0) {
+            const maxVol = w * div; const side = Math.pow(maxVol, 1/3); const totalSum = Math.floor(side * 3);
+            guideEl.innerText = `[크기: ${totalSum}cm]`;
+        } else { guideEl.innerText = ""; }
     }
+
+    function onInputChange() {
+        if (!isNavigating) {
+            const data = saveInputs();
+            if (historyStack.length === 0 || JSON.stringify(historyStack[historyStack.length-1]) !== JSON.stringify(data)) {
+                historyStack.push(JSON.parse(JSON.stringify(data)));
+                if (historyStack.length > 30) historyStack.shift();
+                futureStack = []; 
+            }
+        }
+        doCalc();
+    }
+
+    /* [수정] 직접 입력 시 정밀값 업데이트 */
+    function updatePriceInput(val) {
+        lastField = 'price';
+        const ex = parseFloat(document.getElementById('ex').value) || 1;
+        const isUsd = document.getElementById('unitUsd').checked;
+        const numVal = parseFloat(val) || 0;
+        
+        if (isUsd) {
+            preciseKrwValue = numVal * ex;
+        } else {
+            preciseKrwValue = numVal;
+        }
+    }
+
+    /* [수정] 단위 변환 시 오차 방지 로직 */
+    function convertUnitPrice(newUnit) {
+        if (prevUnit === newUnit) return;
+        const priceInput = document.getElementById('fixedPrice');
+        const ex = parseFloat(document.getElementById('ex').value) || 1;
+
+        if (preciseKrwValue > 0) {
+            if (newUnit === 'usd') {
+                // 원본 정밀 원화값을 달러로 표시
+                priceInput.value = (preciseKrwValue / ex).toFixed(2);
+            } else {
+                // 원본 정밀 원화값을 그대로 표시 (반올림 오차 제거)
+                priceInput.value = Math.round(preciseKrwValue);
+            }
+            lastField = 'price';
+        }
+        prevUnit = newUnit;
+        onInputChange();
+    }
+
+    function goBack() {
+        if (historyStack.length > 1) {
+            isNavigating = true;
+            const current = historyStack.pop();
+            futureStack.push(current);
+            const prevState = historyStack[historyStack.length - 1];
+            applyState(prevState);
+            isNavigating = false;
+        } else { switchTab('lib'); }
+    }
+
+    function goForward() {
+        if (futureStack.length > 0) {
+            isNavigating = true;
+            const nextState = futureStack.pop();
+            historyStack.push(nextState);
+            applyState(nextState);
+            isNavigating = false;
+        }
+    }
+
+    function applyState(state) {
+        Object.keys(state).forEach(k => {
+            const el = document.getElementById(k);
+            if(el) {
+                if(el.type === 'radio') {
+                    if(el.value === state[k]) {
+                        el.checked = true;
+                        if(k === 'priceUnit') prevUnit = state[k];
+                    }
+                } else {
+                    el.value = state[k];
+                }
+            }
+            if(k === 'lastField') lastField = state[k];
+        });
+        // 복구 시 정밀값 재설정
+        const ex = parseFloat(state['ex']) || 1;
+        const isUsd = state['priceUnit'] === 'usd';
+        const fp = parseFloat(state['fixedPrice']) || 0;
+        preciseKrwValue = isUsd ? fp * ex : fp;
+
+        localStorage.setItem('nanaCalcData', JSON.stringify(state));
+        doCalc();
+    }
+
+    function updateClock() { const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토']; const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
     setInterval(updateClock, 1000);
 
-    function showList() {
-        listEl.innerHTML = '';
-        Object.keys(NATION_MAP).forEach(name => {
-            const div = document.createElement('div');
-            div.innerText = `${name} (${NATION_MAP[name]})`;
-            div.onclick = () => { inputEl.value = div.innerText; listEl.style.display = 'none'; saveInputs(); doCalc(); };
-            listEl.appendChild(div);
-            if (name === "캐나다") {
-                const hr = document.createElement('hr'); hr.style.border = "0"; hr.style.height = "3px"; hr.style.background = "#000"; hr.style.margin = "0";
-                listEl.appendChild(hr);
-            }
-        });
-        listEl.style.display = 'block';
+    function clearField(el, type) { 
+        el.value = ''; 
+        if (type) lastField = type; 
+        if (type === 'price') preciseKrwValue = 0;
+        if (el.id === 'countryInput') showList(); 
+        onInputChange(); 
+    }
+    
+    function showList() { 
+        const listEl = document.getElementById('customList'); 
+        listEl.innerHTML = ''; 
+        Object.keys(NATION_MAP).forEach(name => { 
+            const div = document.createElement('div'); 
+            div.innerText = `${name} (${NATION_MAP[name]})`; 
+            if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country');
+            div.onclick = () => { 
+                document.getElementById('countryInput').value = div.innerText; 
+                listEl.style.display = 'none'; 
+                onInputChange(); 
+            }; 
+            listEl.appendChild(div); 
+        }); 
+        listEl.style.display = 'block'; 
     }
 
-    function filterList() {
-        const val = inputEl.value.toLowerCase();
-        const items = listEl.querySelectorAll('div');
-        items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; });
-    }
-
-    document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-container')) listEl.style.display = 'none'; });
-
-    function updateLast(type) { lastField = type; }
-
-    function saveInputs() {
-        const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'duty', 'buffer'];
-        const data = {};
-        ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; });
-        data['lastField'] = lastField;
-        data['currentLoadedId'] = currentLoadedId;
-        data['loadedText'] = document.getElementById('loaded-text').innerText;
-        localStorage.setItem('nanaCalcData', JSON.stringify(data));
-    }
-
-    function loadInputs() {
-        const saved = localStorage.getItem('nanaCalcData');
-        if (saved) {
-            const data = JSON.parse(saved);
-            Object.keys(data).forEach(id => {
-                if (id === 'lastField') { lastField = data[id]; }
-                else if (id === 'currentLoadedId') { currentLoadedId = data[id]; }
-                else if (id === 'loadedText') {
-                    if (currentLoadedId) {
-                        document.getElementById('loaded-text').innerText = data[id];
-                        document.getElementById('loaded-container').style.display = "flex";
-                    }
-                }
-                else { const el = document.getElementById(id); if(el) el.value = data[id]; }
-            });
-        }
-    }
+    function filterList() { const val = document.getElementById('countryInput').value.toLowerCase(); const items = document.getElementById('customList').querySelectorAll('div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; }); }
+    document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-container')) document.getElementById('customList').style.display = 'none'; });
+    function updateLast(type) { lastField = type; onInputChange(); }
 
     function doCalc() {
-        const fields = ['cost', 'local', 'pack', 'buffer', 'w', 'ex'];
-        let allFilled = true;
-        fields.forEach(id => {
-            const input = document.getElementById(id);
-            const dot = document.getElementById('dot_' + id);
-            if(!input) return;
-            const val = input.value.trim();
-            const numVal = parseFloat(val);
-            let condition = (val === "" || (id === 'w' && (isNaN(numVal) || numVal <= 0)));
-            if (condition) { allFilled = false; if(dot) dot.style.visibility = "visible"; }
-            else { if(dot) dot.style.visibility = "hidden"; }
+        updateBoxGuide();
+        const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice');
+        const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput');
+        const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea');
+        const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo');
+
+        let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } }
+        document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden";
+        const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0);
+        document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden";
+        document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden";
+
+        ['cost', 'w', 'local', 'buffer'].forEach(id => {
+            const input = document.getElementById(id); const dot = document.getElementById('dot_' + id);
+            const val = input.value.trim(); let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) <= 0) : (val === "");
+            dot.style.visibility = isInvalid ? "visible" : "hidden";
         });
 
-        const marginInput = document.getElementById('margin');
-        const priceInput = document.getElementById('fixedPrice');
-        const marginDot = document.getElementById('dot_margin');
-        const priceDot = document.getElementById('dot_fixedPrice');
-        const resultArea = document.getElementById('resultArea');
-        const fixedPriceInfo = document.getElementById('fixedPriceInfo');
+        const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
+        document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
 
-        marginInput.style.backgroundColor = "#fff"; marginInput.style.border = "1px solid #ccc";
-        priceInput.style.backgroundColor = "#fff"; priceInput.style.border = "1px solid #ccc";
-        resultArea.classList.remove('mode-margin', 'mode-price');
-        fixedPriceInfo.innerText = "";
+        if (!selectedCode || isExEmpty || !hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
 
-        if (marginInput.value === "" && priceInput.value === "") {
-            allFilled = false; marginDot.style.visibility = "visible"; priceDot.style.visibility = "visible";
-        } else {
-            marginDot.style.visibility = (marginInput.value === "") ? "visible" : "hidden";
-            priceDot.style.visibility = (priceInput.value === "") ? "visible" : "hidden";
-            if(lastField === 'margin') {
-                marginInput.style.backgroundColor = "#f0f7ff"; marginInput.style.border = "2px solid #3498db";
-                resultArea.classList.add('mode-margin');
-            } else {
-                priceInput.style.backgroundColor = "#fffdf0"; priceInput.style.border = "2px solid #f1c40f";
-                resultArea.classList.add('mode-price');
-            }
-        }
-
-        const countryDot = document.getElementById('dot_country');
-        const countryVal = inputEl.value.trim();
-        let selectedCode = "";
-        for (let key in NATION_MAP) { if (countryVal !== "" && (key.includes(countryVal) || countryVal.includes(key))) { selectedCode = NATION_MAP[key]; break; } }
-        
-        if (selectedCode === "") { allFilled = false; countryDot.style.visibility = "visible"; inputEl.style.backgroundColor = "#fff0f0"; }
-        else { countryDot.style.visibility = "hidden"; inputEl.style.backgroundColor = "#f9f9f9"; }
-
-        if (!allFilled) { resultArea.style.display = 'none'; document.getElementById('bepInfo').innerText = ""; return; }
-
-        const div = parseFloat(document.getElementById('shipType').value);
-        const cost = parseFloat(document.getElementById('cost').value);
-        const local = parseFloat(document.getElementById('local').value);
-        const pack = parseFloat(document.getElementById('pack').value);
-        const buffer = parseFloat(document.getElementById('buffer').value);
+        const div = parseFloat(document.getElementById('shipType').value) || 6000;
+        const cost = parseFloat(document.getElementById('cost').value) || 0;
+        const local = parseFloat(document.getElementById('local').value) || 0;
+        const pack = parseFloat(packInput.value) || 0;
+        const buffer = parseFloat(document.getElementById('buffer').value) || 0;
         const duty = parseFloat(document.getElementById('duty').value) || 0;
-        const margin = parseFloat(marginInput.value) || 0;
-        const fixedPrice = parseFloat(priceInput.value) || 0;
-        const w = parseFloat(document.getElementById('w').value);
+        const w = parseFloat(document.getElementById('w').value) || 0;
         const x = parseFloat(document.getElementById('x').value) || 0;
         const y = parseFloat(document.getElementById('y').value) || 0;
         const z = parseFloat(document.getElementById('z').value) || 0;
-        const ex = parseFloat(document.getElementById('ex').value);
-
-        const volW = (x * y * z) / div;
-        const finalW = Math.max(w, volW);
+        
+        const volW = Math.round((x * y * z / div) * 100) / 100;
+        const finalW = Math.max(w, volW); 
         const data = RATES[selectedCode];
-        let shipKrw = 0;
-        if (finalW <= 2.0) {
-            let idx = Math.ceil(finalW / data.step) - 1; if (idx < 0) idx = 0;
-            shipKrw = data.base[idx] || data.base[data.base.length-1];
-        } else {
-            const lastBase = data.base[data.base.length-1];
-            shipKrw = lastBase + (Math.ceil((finalW - 2.0) / data.overStep) * data.overFee);
-        }
-
-        const bufferRate = (100 - buffer) / 100;
-        const expenseSum = cost + local + pack + duty + shipKrw;
+        
+        let shipKrw = (finalW <= 2.0) ? 
+            (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : 
+            (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
+        
+        const bufferRate = (100 - buffer) / 100; 
+        const expenseSum = cost + local + pack + duty + shipKrw; 
         const bepKrw = (expenseSum / bufferRate);
-        const bepUsd = bepKrw / ex;
-
-        const bepInfo = document.getElementById('bepInfo');
-        const resMarginInfo = document.getElementById('resMarginInfo');
-        let finalPriceKrw = 0; let actualMargin = 0;
-
-        if (lastField === 'price' && fixedPrice > 0) {
-            finalPriceKrw = fixedPrice;
-            actualMargin = (fixedPrice * bufferRate) - expenseSum;
-            fixedPriceInfo.style.color = (actualMargin < 0) ? "#d32f2f" : "#2e7d32";
-            const labelStr = (actualMargin < 0 ? "손해" : "예상 마진");
-            fixedPriceInfo.innerHTML = `<span>${labelStr}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>`;
-        } else {
-            finalPriceKrw = (expenseSum + margin) / bufferRate;
-            actualMargin = margin;
-            fixedPriceInfo.style.color = "#000";
-            fixedPriceInfo.innerHTML = `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`;
-        }
-
-        const actualMarginUsd = actualMargin / ex;
-        const finalUsd = finalPriceKrw / ex;
-
-        resMarginInfo.style.color = (actualMargin < 0) ? "#d32f2f" : "#2e7d32";
-        resMarginInfo.innerText = (actualMargin < 0 ? "손해: $" : "예상 마진: $") + actualMarginUsd.toFixed(2) + " (" + Math.round(actualMargin).toLocaleString() + "원)";
+        const marginVal = parseFloat(marginInput.value) || 0; 
         
-        bepInfo.innerHTML = `<span style="color:#e65100;">분기점: $${bepUsd.toFixed(2)}</span><span class="price-sub" style="color:#e65100;">(${Math.round(bepKrw).toLocaleString()}원)</span>`;
-
-        const resPriceEl = document.getElementById('resPrice');
-        resPriceEl.style.color = (finalPriceKrw <= bepKrw + 1) ? "#d32f2f" : "#000";
-        resPriceEl.innerText = "$" + finalUsd.toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)";
+        const isUsd = document.getElementById('unitUsd').checked;
+        const fixedPriceVal = preciseKrwValue; // 정밀값 사용
         
-        document.getElementById('resDetail').innerHTML = `• 실중량: ${w.toFixed(2)}kg / 부피: ${volW.toFixed(2)}kg<br>• <b>최종 적용: ${finalW.toFixed(2)}kg</b><br>• 해외 배송비: <b>${shipKrw.toLocaleString()}원</b><br>• 지출 합계: ${Math.round(expenseSum).toLocaleString()}원`;
+        let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate;
+        let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal;
+        
+        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; 
+        const marginText = (actualMargin < 0) ? "손해" : "예상 마진";
+
+        document.getElementById('resMarginInfo').style.color = marginColor;
+        document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`;
+        fInfo.style.color = marginColor;
+        fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`;
+        bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`;
+        document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)";
+        
+        const wColor = (w >= volW) ? "color:#27ae60; font-weight:bold;" : "";
+        const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
+        document.getElementById('resDetail').innerHTML = 
+            `• 최종 무게: <span style="${wColor}">${w.toFixed(2)}kg</span> ` +
+            `(<span style="${volColor}">부피:${volW.toFixed(2)}kg</span>)<br>` + 
+            `• 배송비: ${shipKrw.toLocaleString()}원 / 지출합계: ${Math.round(expenseSum).toLocaleString()}원`;
+        
+        marginInput.classList.toggle('mode-margin', lastField === 'margin');
+        priceInput.classList.toggle('mode-price', lastField === 'price');
+        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price');
         resultArea.style.display = 'block';
     }
 
-    function switchTab(tab) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-' + tab).classList.add('active');
-        document.getElementById('tab-' + tab + '-btn').classList.add('active');
-        if (tab === 'lib') {
-            const titleInput = document.getElementById('saveTitle');
-            if (preFetchedLocation) titleInput.value = preFetchedLocation; else fetchLocation();
-            renderLibrary();
-        }
-        window.scrollTo(0, 0);
+    function saveInputs() { 
+        const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'buffer', 'duty']; 
+        const data = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; }); 
+        const unitEl = document.querySelector('input[name="priceUnit"]:checked');
+        data['priceUnit'] = unitEl ? unitEl.value : 'krw';
+        data['lastField'] = lastField; data['currentLoadedId'] = currentLoadedId; 
+        localStorage.setItem('nanaCalcData', JSON.stringify(data)); return data; 
     }
 
-    let touchStartX = 0;
-    document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', e => {
-        const touchEndX = e.changedTouches[0].screenX; const diff = touchStartX - touchEndX;
-        const activeBtn = document.querySelector('.nav-tabs button.active');
-        if (!activeBtn) return;
-        const currentTab = activeBtn.id;
-        if (Math.abs(diff) > 50) {
-            if (diff > 0 && currentTab === 'tab-calc-btn') switchTab('lib');
-            else if (diff < 0 && currentTab === 'tab-lib-btn') switchTab('calc');
-        }
-    }, {passive: true});
-
-    function fetchLocation() {
-        if (!navigator.geolocation) return;
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            try {
-                const { latitude, longitude } = pos.coords;
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=18`);
-                const data = await res.json();
-                preFetchedLocation = data.name || (data.address && data.address.road) || "현재 위치 상품";
-                const titleInput = document.getElementById('saveTitle');
-                if (titleInput) titleInput.value = preFetchedLocation;
-            } catch (e) {}
-        }, null, { enableHighAccuracy: true, timeout: 5000 });
+    function loadInputs() { 
+        const saved = localStorage.getItem('nanaCalcData'); 
+        if (saved) { 
+            const data = JSON.parse(saved); 
+            applyState(data);
+            if (data.currentLoadedId) { 
+                const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
+                const item = lib.find(i => i.id === data.currentLoadedId); 
+                if(item) { document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; currentLoadedId = data.currentLoadedId; } 
+            } 
+        } 
     }
 
-    function handleImg(input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const width = 400; const height = img.height * (width / img.width);
-                    canvas.width = width; canvas.height = height;
-                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                    currentImgBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                    document.getElementById('preview-container').innerHTML = `<img src="${currentImgBase64}">`;
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
+    function switchTab(tab) { 
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); 
+        document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); 
+        document.getElementById('tab-' + tab).classList.add('active'); 
+        document.getElementById('tab-' + tab + '-btn').classList.add('active'); 
+        if (tab === 'lib') { isEditMode = false; renderLibrary(); } else { loadInputs(); doCalc(); } 
     }
 
-    async function saveToLibrary() {
-        if (!currentImgBase64) { alert("📷 사진을 먼저 찍거나 갤러리에서 선택해주세요!"); return; }
-        const titleInput = document.getElementById('saveTitle');
-        const title = titleInput.value.trim();
-        if (!title) { alert("저장 제목을 입력해주세요!"); return; }
-        const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'duty', 'buffer'];
-        const values = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) values[id] = el.value; });
-        const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()}(${days[now.getDay()]}) ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
-        const item = { id: Date.now(), title: title, date: dateStr, img: currentImgBase64, data: values, lastField: lastField };
-        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
-        lib.unshift(item);
-        localStorage.setItem('nanaLibrary', JSON.stringify(lib));
-        renderLibrary();
-        if (currentImgBase64 && navigator.share) {
-            try {
-                const blob = await (await fetch(currentImgBase64)).blob();
-                const file = new File([blob], `나나_${title}.jpg`, { type: 'image/jpeg' });
-                await navigator.share({ files: [file], title: '나나 결과 전송' });
-            } catch (e) {}
-        }
-        titleInput.value = ""; document.getElementById('preview-container').innerHTML = "미리보기"; currentImgBase64 = "";
-        alert("전송 완료!");
+    function capturePhoto() { document.getElementById('photoCamera').click(); }
+    function openGallery() { document.getElementById('photoGallery').click(); }
+    function handleImg(input) { 
+        if (input.files && input.files[0]) { 
+            const reader = new FileReader(); 
+            reader.onload = (e) => { 
+                const img = new Image(); 
+                img.onload = () => { 
+                    const canvas = document.createElement('canvas'); const width = 400; 
+                    canvas.width = width; canvas.height = img.height * (width / img.width); 
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); 
+                    currentImgBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+                    document.getElementById('preview-container').innerHTML = `<img src="${currentImgBase64}" style="height:100%;">`; 
+                    saveToLibrary(); 
+                }; img.src = e.target.result; 
+            }; reader.readAsDataURL(input.files[0]); 
+        } 
     }
 
-    function openModal(e, imgSrc) { e.stopPropagation(); document.getElementById('img-modal').style.display = "flex"; document.getElementById('modal-img').src = imgSrc; }
+    function saveToLibrary() { 
+        const title = document.getElementById('saveTitle').value.trim() || "새 상품"; 
+        const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; 
+        const item = { id: Date.now(), title: title, date: dateStr, img: currentImgBase64, data: saveInputs(), lastField: lastField }; 
+        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); 
+        localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); 
+        document.getElementById('saveTitle').value = ""; document.getElementById('preview-container').innerHTML = "미리보기"; currentImgBase64 = ""; 
+    }
+
+    function renderLibrary() { 
+        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
+        const listContainer = document.getElementById('library-list'); 
+        listContainer.innerHTML = lib.length ? "" : "<p style='text-align:center; color:#999; font-size:12px; margin-top:20px;'>목록이 비어있습니다.</p>"; 
+        lib.forEach(item => { 
+            const div = document.createElement('div'); div.className = 'library-item'; 
+            div.onclick = (e) => { if(!isEditMode) loadItem(item.id); else { const cb = div.querySelector('.item-checkbox'); if(e.target !== cb) cb.checked = !cb.checked; } }; 
+            const displayStyle = isEditMode ? 'flex' : 'none'; 
+            div.innerHTML = `<div class="check-wrapper" style="display:${displayStyle}"><input type="checkbox" class="item-checkbox" value="${item.id}" onclick="event.stopPropagation()"></div><img src="${item.img || ''}" onclick="openModal(event, '${item.img}')"><div class="library-info"><div class="library-title">${item.title}</div><div class="library-date">${item.date}</div></div><div style="display:${isEditMode ? 'none' : 'flex'}; gap:5px;"><button style="background:#fee500; color:#3c1e1e; border:none; padding:6px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="shareSNS(event, ${item.id})">SNS</button><div style="color:#ccc; font-size:18px; cursor:pointer; padding:0 5px;" onclick="deleteItem(event, ${item.id})">×</div></div>`; 
+            listContainer.appendChild(div); 
+        }); 
+    }
+
+    function loadItem(id) { 
+        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); 
+        if (item) { 
+            if (!currentLoadedId) lastBackup = saveInputs(); 
+            currentLoadedId = id; applyState(item.data); 
+            lastField = item.lastField || 'margin'; 
+            document.getElementById('loaded-text').innerText = "불러옴: " + item.title; 
+            document.getElementById('loaded-container').style.display = "flex"; 
+            onInputChange(); switchTab('calc'); 
+        } 
+    }
+
+    function unloadItem() { 
+        currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; 
+        if (lastBackup) { applyState(lastBackup); lastBackup = null; } 
+        onInputChange(); 
+    }
+
+    function deleteItem(e, id) { e.stopPropagation(); if(confirm("삭제하시겠습니까?")) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(i => i.id !== id); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
+    function toggleEditMode() { isEditMode = !isEditMode; document.getElementById('edit-mode-btn').style.display = isEditMode ? 'none' : 'block'; document.getElementById('multi-del-row').style.display = isEditMode ? 'flex' : 'none'; renderLibrary(); }
+    function deleteSelected() { 
+        const selected = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => parseInt(cb.value)); 
+        if (selected.length === 0) return; 
+        if (confirm(`${selected.length}개를 삭제하시겠습니까?`)) { 
+            let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(item => !selected.includes(item.id)); 
+            localStorage.setItem('nanaLibrary', JSON.stringify(lib)); toggleEditMode(); 
+        } 
+    }
+
+    async function shareSNS(e, id) { 
+        e.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); 
+        if (item && item.img && navigator.share) { 
+            try { 
+                const blob = await (await fetch(item.img)).blob(); const file = new File([blob], `nana_${item.title}.jpg`, { type: 'image/jpeg' }); 
+                await navigator.share({ files: [file], title: '나나 통합 계산기', text: `상품명: ${item.title}` }); 
+            } catch (err) {} 
+        } else alert("공유 미지원 환경입니다."); 
+    }
+
+    function openModal(e, src) { e.stopPropagation(); document.getElementById('img-modal').style.display = "flex"; document.getElementById('modal-img').src = src; }
     function closeModal() { document.getElementById('img-modal').style.display = "none"; }
 
-    function renderLibrary() {
-        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
-        const listContainer = document.getElementById('library-list');
-        listContainer.innerHTML = lib.length ? "" : "<p style='text-align:center; color:#999; font-size:12px; margin-top:20px;'>목록이 비어있습니다.</p>";
-        lib.forEach(item => {
-            const div = document.createElement('div'); div.className = 'library-item';
-            div.onclick = () => loadItem(item.id);
-            div.innerHTML = `<img src="${item.img || ''}" onclick="openModal(event, '${item.img}')">` +
-                            `<div class="library-info"><div class="library-title">${item.title}</div>` +
-                            `<div class="library-date">${item.date}</div></div>` +
-                            `<div class="del-btn" onclick="deleteItem(event, ${item.id})">×</div>`;
-            listContainer.appendChild(div);
-        });
-    }
-
-    function deleteItem(e, id) {
-        e.stopPropagation();
-        if(!confirm("정말 삭제하시겠습니까?")) return;
-        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
-        lib = lib.filter(i => i.id !== id);
-        localStorage.setItem('nanaLibrary', JSON.stringify(lib));
-        if(currentLoadedId === id) unloadItem();
-        renderLibrary();
-    }
-
-    function loadItem(id) {
-        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
-        const item = lib.find(i => i.id === id);
-        if (item) {
-            // [수정] 불러오기 전, 현재 입력창의 데이터를 백업합니다.
-            const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'duty', 'buffer'];
-            lastBackup = {};
-            ids.forEach(k => { 
-                const el = document.getElementById(k);
-                if(el) lastBackup[k] = el.value;
-            });
-            lastBackup['lastField'] = lastField;
-
-            currentLoadedId = id;
-            Object.keys(item.data).forEach(k => { const el = document.getElementById(k); if(el) el.value = item.data[k]; });
-            lastField = item.lastField;
-            document.getElementById('loaded-text').innerText = "불러옴: " + item.title;
-            document.getElementById('loaded-container').style.display = "flex";
-            saveInputs(); switchTab('calc'); doCalc();
-        }
-    }
-
-    function unloadItem() {
-        currentLoadedId = null;
-        document.getElementById('loaded-container').style.display = "none";
-        document.getElementById('loaded-text').innerText = "불러옴: 없음";
-
-        // [수정] 백업된 데이터가 있다면 그전 단계로 복구하고, 없으면 기본 초기화합니다.
-        if (lastBackup) {
-            Object.keys(lastBackup).forEach(k => {
-                const el = document.getElementById(k);
-                if(el) el.value = lastBackup[k];
-            });
-            lastField = lastBackup['lastField'];
-            lastBackup = null; // 사용 후 백업 비움
-        } else {
-            // 백업이 없는 경우 (예외 상황) 핵심 데이터 초기화
-            document.getElementById('cost').value = "";
-            document.getElementById('w').value = "";
-            document.getElementById('margin').value = "0";
-            document.getElementById('fixedPrice').value = "";
-        }
-
-        saveInputs();
-        doCalc(); // 복구된 데이터로 즉시 재계산
-    }
-
-    window.onload = () => { loadInputs(); updateClock(); doCalc(); };
+    window.onload = () => { loadInputs(); updateClock(); onInputChange(); };
 </script>
-
 </body>
 </html>
