@@ -6,7 +6,7 @@
     <title>나나 통합 계산기</title>
     <style>
         /* [의장님 전용 UI - 냥냥이 기준 코드 100% 준수] */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: pan-y; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
         .nav-tabs button.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -201,7 +201,48 @@
     let currentImgBase64 = ""; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null; let isEditMode = false;
     let historyStack = []; let futureStack = []; let isNavigating = false;
     let prevUnit = 'krw'; 
-    let preciseKrwValue = 0; // [신규] 원 단위 원본 정밀 값 저장용
+    let preciseKrwValue = 0; 
+    
+    // [스와이프 로직 - 이전 감도 그대로 적용]
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const swipeThreshold = 60;
+
+    document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+    document.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    }, {passive: true});
+
+    function handleSwipe() {
+        const diff = touchEndX - touchStartX;
+        const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
+        if (Math.abs(diff) > swipeThreshold) {
+            if (diff < 0 && currentTab === 'calc') { switchTab('lib'); } 
+            else if (diff > 0 && currentTab === 'lib') { switchTab('calc'); }
+        }
+    }
+
+    // [주소 자동 입력 로직 - 의장님 요청 반영]
+    function updateLocationAddress() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`);
+                const data = await res.json();
+                if (data && data.address) {
+                    const road = data.address.road || "";
+                    const houseNumber = data.address.house_number || "";
+                    const suburb = data.address.suburb || ""; // 동 단위
+                    let fullAddr = `${road} ${houseNumber} ${suburb}`.trim();
+                    if(fullAddr) {
+                        const titleInput = document.getElementById('saveTitle');
+                        if(!titleInput.value) titleInput.value = fullAddr;
+                    }
+                }
+            } catch (e) {}
+        }, null, { enableHighAccuracy: true, timeout: 5000 });
+    }
 
     function updateBoxGuide() {
         const w = parseFloat(document.getElementById('w').value) || 0;
@@ -225,34 +266,21 @@
         doCalc();
     }
 
-    /* [수정] 직접 입력 시 정밀값 업데이트 */
     function updatePriceInput(val) {
         lastField = 'price';
         const ex = parseFloat(document.getElementById('ex').value) || 1;
         const isUsd = document.getElementById('unitUsd').checked;
         const numVal = parseFloat(val) || 0;
-        
-        if (isUsd) {
-            preciseKrwValue = numVal * ex;
-        } else {
-            preciseKrwValue = numVal;
-        }
+        if (isUsd) { preciseKrwValue = numVal * ex; } else { preciseKrwValue = numVal; }
     }
 
-    /* [수정] 단위 변환 시 오차 방지 로직 */
     function convertUnitPrice(newUnit) {
         if (prevUnit === newUnit) return;
         const priceInput = document.getElementById('fixedPrice');
         const ex = parseFloat(document.getElementById('ex').value) || 1;
-
         if (preciseKrwValue > 0) {
-            if (newUnit === 'usd') {
-                // 원본 정밀 원화값을 달러로 표시
-                priceInput.value = (preciseKrwValue / ex).toFixed(2);
-            } else {
-                // 원본 정밀 원화값을 그대로 표시 (반올림 오차 제거)
-                priceInput.value = Math.round(preciseKrwValue);
-            }
+            if (newUnit === 'usd') { priceInput.value = (preciseKrwValue / ex).toFixed(2); } 
+            else { priceInput.value = Math.round(preciseKrwValue); }
             lastField = 'price';
         }
         prevUnit = newUnit;
@@ -289,18 +317,14 @@
                         el.checked = true;
                         if(k === 'priceUnit') prevUnit = state[k];
                     }
-                } else {
-                    el.value = state[k];
-                }
+                } else { el.value = state[k]; }
             }
             if(k === 'lastField') lastField = state[k];
         });
-        // 복구 시 정밀값 재설정
         const ex = parseFloat(state['ex']) || 1;
         const isUsd = state['priceUnit'] === 'usd';
         const fp = parseFloat(state['fixedPrice']) || 0;
         preciseKrwValue = isUsd ? fp * ex : fp;
-
         localStorage.setItem('nanaCalcData', JSON.stringify(state));
         doCalc();
     }
@@ -309,25 +333,16 @@
     setInterval(updateClock, 1000);
 
     function clearField(el, type) { 
-        el.value = ''; 
-        if (type) lastField = type; 
-        if (type === 'price') preciseKrwValue = 0;
-        if (el.id === 'countryInput') showList(); 
-        onInputChange(); 
+        el.value = ''; if (type) lastField = type; if (type === 'price') preciseKrwValue = 0;
+        if (el.id === 'countryInput') showList(); onInputChange(); 
     }
     
     function showList() { 
-        const listEl = document.getElementById('customList'); 
-        listEl.innerHTML = ''; 
+        const listEl = document.getElementById('customList'); listEl.innerHTML = ''; 
         Object.keys(NATION_MAP).forEach(name => { 
-            const div = document.createElement('div'); 
-            div.innerText = `${name} (${NATION_MAP[name]})`; 
+            const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; 
             if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country');
-            div.onclick = () => { 
-                document.getElementById('countryInput').value = div.innerText; 
-                listEl.style.display = 'none'; 
-                onInputChange(); 
-            }; 
+            div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; 
             listEl.appendChild(div); 
         }); 
         listEl.style.display = 'block'; 
@@ -343,24 +358,19 @@
         const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput');
         const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea');
         const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo');
-
         let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } }
         document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden";
         const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0);
         document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden";
         document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden";
-
         ['cost', 'w', 'local', 'buffer'].forEach(id => {
             const input = document.getElementById(id); const dot = document.getElementById('dot_' + id);
             const val = input.value.trim(); let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) <= 0) : (val === "");
             dot.style.visibility = isInvalid ? "visible" : "hidden";
         });
-
         const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
         document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
-
         if (!selectedCode || isExEmpty || !hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
-
         const div = parseFloat(document.getElementById('shipType').value) || 6000;
         const cost = parseFloat(document.getElementById('cost').value) || 0;
         const local = parseFloat(document.getElementById('local').value) || 0;
@@ -371,47 +381,24 @@
         const x = parseFloat(document.getElementById('x').value) || 0;
         const y = parseFloat(document.getElementById('y').value) || 0;
         const z = parseFloat(document.getElementById('z').value) || 0;
-        
         const volW = Math.round((x * y * z / div) * 100) / 100;
-        const finalW = Math.max(w, volW); 
-        const data = RATES[selectedCode];
-        
-        let shipKrw = (finalW <= 2.0) ? 
-            (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : 
-            (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
-        
-        const bufferRate = (100 - buffer) / 100; 
-        const expenseSum = cost + local + pack + duty + shipKrw; 
-        const bepKrw = (expenseSum / bufferRate);
-        const marginVal = parseFloat(marginInput.value) || 0; 
-        
-        const isUsd = document.getElementById('unitUsd').checked;
-        const fixedPriceVal = preciseKrwValue; // 정밀값 사용
-        
+        const finalW = Math.max(w, volW); const data = RATES[selectedCode];
+        let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
+        const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate);
+        const marginVal = parseFloat(marginInput.value) || 0; const fixedPriceVal = preciseKrwValue;
         let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate;
         let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal;
-        
-        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; 
-        const marginText = (actualMargin < 0) ? "손해" : "예상 마진";
-
+        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; const marginText = (actualMargin < 0) ? "손해" : "예상 마진";
         document.getElementById('resMarginInfo').style.color = marginColor;
         document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`;
         fInfo.style.color = marginColor;
         fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`;
         bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`;
         document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)";
-        
-        const wColor = (w >= volW) ? "color:#27ae60; font-weight:bold;" : "";
-        const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
-        document.getElementById('resDetail').innerHTML = 
-            `• 최종 무게: <span style="${wColor}">${w.toFixed(2)}kg</span> ` +
-            `(<span style="${volColor}">부피:${volW.toFixed(2)}kg</span>)<br>` + 
-            `• 배송비: ${shipKrw.toLocaleString()}원 / 지출합계: ${Math.round(expenseSum).toLocaleString()}원`;
-        
-        marginInput.classList.toggle('mode-margin', lastField === 'margin');
-        priceInput.classList.toggle('mode-price', lastField === 'price');
-        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price');
-        resultArea.style.display = 'block';
+        const wColor = (w >= volW) ? "color:#27ae60; font-weight:bold;" : ""; const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
+        document.getElementById('resDetail').innerHTML = `• 최종 무게: <span style="${wColor}">${w.toFixed(2)}kg</span> (<span style="${volColor}">부피:${volW.toFixed(2)}kg</span>)<br>• 배송비: ${shipKrw.toLocaleString()}원 / 지출합계: ${Math.round(expenseSum).toLocaleString()}원`;
+        marginInput.classList.toggle('mode-margin', lastField === 'margin'); priceInput.classList.toggle('mode-price', lastField === 'price');
+        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
     }
 
     function saveInputs() { 
@@ -426,8 +413,7 @@
     function loadInputs() { 
         const saved = localStorage.getItem('nanaCalcData'); 
         if (saved) { 
-            const data = JSON.parse(saved); 
-            applyState(data);
+            const data = JSON.parse(saved); applyState(data);
             if (data.currentLoadedId) { 
                 const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
                 const item = lib.find(i => i.id === data.currentLoadedId); 
@@ -441,7 +427,11 @@
         document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); 
         document.getElementById('tab-' + tab).classList.add('active'); 
         document.getElementById('tab-' + tab + '-btn').classList.add('active'); 
-        if (tab === 'lib') { isEditMode = false; renderLibrary(); } else { loadInputs(); doCalc(); } 
+        if (tab === 'lib') { 
+            isEditMode = false; 
+            updateLocationAddress(); // 탭 이동시 주소 업데이트
+            renderLibrary(); 
+        } else { loadInputs(); doCalc(); } 
     }
 
     function capturePhoto() { document.getElementById('photoCamera').click(); }
