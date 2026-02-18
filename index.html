@@ -208,10 +208,9 @@
     let historyStack = []; let futureStack = []; let isNavigating = false;
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     
-    // [의장님 지시: 스마트 조작 감지 - 확대 시 스와이프 차단]
-    let touchStartX = 0; let touchEndX = 0; const swipeThreshold = 75; 
+    // [의장님 지시: 스마트 조작 감지 - 확대 시 스와이프 차단 & 임계값 60px]
+    let touchStartX = 0; let touchEndX = 0; const swipeThreshold = 60; 
     document.addEventListener('touchstart', e => { 
-        // 멀티터치(두 손가락 이상) 시 스와이프 무효화
         if (e.touches.length > 1) { touchStartX = 0; return; }
         touchStartX = e.changedTouches[0].screenX; 
     }, {passive: true});
@@ -220,12 +219,8 @@
         if (touchStartX === 0) return;
         touchEndX = e.changedTouches[0].screenX; 
         
-        // 스마트 조작 감지: 브라우저 배율이 1보다 크면(확대 상태) 스와이프 로직 실행 안 함
-        // 비주얼 뷰포트 지원 브라우저 대응 (모바일 크롬, 사파리 등)
         const currentZoom = (window.visualViewport) ? window.visualViewport.scale : 1;
-        if (currentZoom <= 1.05) { // 미세 오차 감안하여 1.05 이하일 때만 작동
-            handleSwipe(); 
-        }
+        if (currentZoom <= 1.05) { handleSwipe(); }
     }, {passive: true});
 
     function handleSwipe() {
