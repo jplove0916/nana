@@ -60,6 +60,10 @@
         #loaded-text { font-size: 11px; font-weight: 500; margin-right: 8px; word-break: break-all; white-space: normal; line-height: 1.1; }
         #close-loaded { cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; flex-shrink: 0; color: #adb5bd; margin-top: -2px; }
         
+        /* [의장님 요청: 실시간 무게/배송비 정보창 스타일] */
+        #liveDetail { margin-top: 10px; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 8px; font-size: 13px; color: #444; line-height: 1.6; display: none; }
+        #liveDetail span { font-size: 13.5px; } /* 폰트 1.3배 수준 조정 */
+
         .save-box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #27ae60; box-sizing: border-box; }
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
         .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; box-sizing: border-box; position: relative; min-height: 72px; }
@@ -115,7 +119,7 @@
             <div><label><span>희망 마진 <small>(원)</small></span><span id="dot_margin" class="req-dot">.</span></label><input type="number" id="margin" value="0" onfocus="clearField(this, 'margin')" oninput="updateLast('margin'); onInputChange();"></div>
         </div>
         <div class="row">
-            <div style="flex: 1.2;">
+            <div>
                 <label style="display: flex; justify-content: flex-start; align-items: center;">
                     <span>희망 판매가</span>
                     <div class="unit-selector">
@@ -148,6 +152,9 @@
             <div><label>세로<small>(cm)</small></label><input type="number" id="y" onfocus="clearField(this)" oninput="onInputChange()"></div>
             <div><label>높이<small>(cm)</small></label><input type="number" id="z" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
+        
+        <div id="liveDetail"></div>
+
         <div class="section-title">기타 부수 비용</div>
         <div class="row">
             <div><label><span>국내 배송비 <small>(원)</small></span><span id="dot_local" class="req-dot">.</span></label><input type="number" id="local" value="3000" onfocus="clearField(this)" oninput="onInputChange()"></div>
@@ -161,7 +168,6 @@
             <label id="resTitle" style="color:#2c3e50; display:block; text-align:center; font-size:11px; font-weight:bold;">이베이 판매가</label>
             <span id="resPrice" class="price-tag">$0.00</span>
             <div id="resMarginInfo"></div>
-            <div id="resDetail" style="font-size: 10px; color:#444; line-height: 1.6; border-top:1px dashed #ccc; padding-top:8px;"></div>
         </div>
         <div class="footer-note"><strong>* 정식 요율표 로직 적용 완료</strong></div>
     </div>
@@ -200,19 +206,12 @@
 
     let currentImgBase64 = ""; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null; let isEditMode = false;
     let historyStack = []; let futureStack = []; let isNavigating = false;
-    let prevUnit = 'krw'; 
-    let preciseKrwValue = 0; 
+    let prevUnit = 'krw'; let preciseKrwValue = 0; 
     
-    // [스와이프 로직 - 이전 감도 그대로 적용]
-    let touchStartX = 0;
-    let touchEndX = 0;
-    const swipeThreshold = 60;
-
+    // [의장님 지시: 스와이프 감도 77px로 상향 조정]
+    let touchStartX = 0; let touchEndX = 0; const swipeThreshold = 77; 
     document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', e => {
-        touchEndX = e.changedTouches[0].screenX;
-        handleSwipe();
-    }, {passive: true});
+    document.addEventListener('touchend', e => { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
 
     function handleSwipe() {
         const diff = touchEndX - touchStartX;
@@ -223,7 +222,6 @@
         }
     }
 
-    // [주소 자동 입력 로직 - 의장님 요청 반영]
     function updateLocationAddress() {
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -231,14 +229,9 @@
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`);
                 const data = await res.json();
                 if (data && data.address) {
-                    const road = data.address.road || "";
-                    const houseNumber = data.address.house_number || "";
-                    const suburb = data.address.suburb || ""; // 동 단위
-                    let fullAddr = `${road} ${houseNumber} ${suburb}`.trim();
-                    if(fullAddr) {
-                        const titleInput = document.getElementById('saveTitle');
-                        if(!titleInput.value) titleInput.value = fullAddr;
-                    }
+                    const road = data.address.road || ""; const houseNumber = data.address.house_number || ""; const suburb = data.address.suburb || "";
+                    let fullAddr = `${road} ${houseNumber} ${suburb} `.trim();
+                    if(fullAddr) { const titleInput = document.getElementById('saveTitle'); if(!titleInput.value) titleInput.value = fullAddr; }
                 }
             } catch (e) {}
         }, null, { enableHighAccuracy: true, timeout: 5000 });
@@ -248,10 +241,7 @@
         const w = parseFloat(document.getElementById('w').value) || 0;
         const div = parseFloat(document.getElementById('shipType').value) || 6000;
         const guideEl = document.getElementById('boxGuide');
-        if (w > 0) {
-            const maxVol = w * div; const side = Math.pow(maxVol, 1/3); const totalSum = Math.floor(side * 3);
-            guideEl.innerText = `[크기: ${totalSum}cm]`;
-        } else { guideEl.innerText = ""; }
+        if (w > 0) { const maxVol = w * div; const side = Math.pow(maxVol, 1/3); const totalSum = Math.floor(side * 3); guideEl.innerText = `[크기: ${totalSum}cm]`; } else { guideEl.innerText = ""; }
     }
 
     function onInputChange() {
@@ -266,91 +256,21 @@
         doCalc();
     }
 
-    function updatePriceInput(val) {
-        lastField = 'price';
-        const ex = parseFloat(document.getElementById('ex').value) || 1;
-        const isUsd = document.getElementById('unitUsd').checked;
-        const numVal = parseFloat(val) || 0;
-        if (isUsd) { preciseKrwValue = numVal * ex; } else { preciseKrwValue = numVal; }
-    }
-
-    function convertUnitPrice(newUnit) {
-        if (prevUnit === newUnit) return;
-        const priceInput = document.getElementById('fixedPrice');
-        const ex = parseFloat(document.getElementById('ex').value) || 1;
-        if (preciseKrwValue > 0) {
-            if (newUnit === 'usd') { priceInput.value = (preciseKrwValue / ex).toFixed(2); } 
-            else { priceInput.value = Math.round(preciseKrwValue); }
-            lastField = 'price';
-        }
-        prevUnit = newUnit;
-        onInputChange();
-    }
-
-    function goBack() {
-        if (historyStack.length > 1) {
-            isNavigating = true;
-            const current = historyStack.pop();
-            futureStack.push(current);
-            const prevState = historyStack[historyStack.length - 1];
-            applyState(prevState);
-            isNavigating = false;
-        } else { switchTab('lib'); }
-    }
-
-    function goForward() {
-        if (futureStack.length > 0) {
-            isNavigating = true;
-            const nextState = futureStack.pop();
-            historyStack.push(nextState);
-            applyState(nextState);
-            isNavigating = false;
-        }
-    }
+    function updatePriceInput(val) { lastField = 'price'; const ex = parseFloat(document.getElementById('ex').value) || 1; const isUsd = document.getElementById('unitUsd').checked; const numVal = parseFloat(val) || 0; if (isUsd) { preciseKrwValue = numVal * ex; } else { preciseKrwValue = numVal; } }
+    function convertUnitPrice(newUnit) { if (prevUnit === newUnit) return; const priceInput = document.getElementById('fixedPrice'); const ex = parseFloat(document.getElementById('ex').value) || 1; if (preciseKrwValue > 0) { if (newUnit === 'usd') { priceInput.value = (preciseKrwValue / ex).toFixed(2); } else { priceInput.value = Math.round(preciseKrwValue); } lastField = 'price'; } prevUnit = newUnit; onInputChange(); }
 
     function applyState(state) {
         Object.keys(state).forEach(k => {
             const el = document.getElementById(k);
-            if(el) {
-                if(el.type === 'radio') {
-                    if(el.value === state[k]) {
-                        el.checked = true;
-                        if(k === 'priceUnit') prevUnit = state[k];
-                    }
-                } else { el.value = state[k]; }
-            }
+            if(el) { if(el.type === 'radio') { if(el.value === state[k]) { el.checked = true; if(k === 'priceUnit') prevUnit = state[k]; } } else { el.value = state[k]; } }
             if(k === 'lastField') lastField = state[k];
         });
-        const ex = parseFloat(state['ex']) || 1;
-        const isUsd = state['priceUnit'] === 'usd';
-        const fp = parseFloat(state['fixedPrice']) || 0;
-        preciseKrwValue = isUsd ? fp * ex : fp;
-        localStorage.setItem('nanaCalcData', JSON.stringify(state));
-        doCalc();
+        const ex = parseFloat(state['ex']) || 1; const isUsd = state['priceUnit'] === 'usd'; const fp = parseFloat(state['fixedPrice']) || 0;
+        preciseKrwValue = isUsd ? fp * ex : fp; localStorage.setItem('nanaCalcData', JSON.stringify(state)); doCalc();
     }
 
-    function updateClock() { const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토']; const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
-    setInterval(updateClock, 1000);
-
-    function clearField(el, type) { 
-        el.value = ''; if (type) lastField = type; if (type === 'price') preciseKrwValue = 0;
-        if (el.id === 'countryInput') showList(); onInputChange(); 
-    }
-    
-    function showList() { 
-        const listEl = document.getElementById('customList'); listEl.innerHTML = ''; 
-        Object.keys(NATION_MAP).forEach(name => { 
-            const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; 
-            if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country');
-            div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; 
-            listEl.appendChild(div); 
-        }); 
-        listEl.style.display = 'block'; 
-    }
-
-    function filterList() { const val = document.getElementById('countryInput').value.toLowerCase(); const items = document.getElementById('customList').querySelectorAll('div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; }); }
-    document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-container')) document.getElementById('customList').style.display = 'none'; });
-    function updateLast(type) { lastField = type; onInputChange(); }
+    function goBack() { if (historyStack.length > 1) { isNavigating = true; const current = historyStack.pop(); futureStack.push(current); applyState(historyStack[historyStack.length - 1]); isNavigating = false; } else { switchTab('lib'); } }
+    function goForward() { if (futureStack.length > 0) { isNavigating = true; const nextState = futureStack.pop(); historyStack.push(nextState); applyState(nextState); isNavigating = false; } }
 
     function doCalc() {
         updateBoxGuide();
@@ -358,6 +278,8 @@
         const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput');
         const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea');
         const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo');
+        const liveDetail = document.getElementById('liveDetail');
+
         let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } }
         document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden";
         const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0);
@@ -370,7 +292,9 @@
         });
         const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
         document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
-        if (!selectedCode || isExEmpty || !hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
+        
+        if (!selectedCode || isExEmpty) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; }
+        
         const div = parseFloat(document.getElementById('shipType').value) || 6000;
         const cost = parseFloat(document.getElementById('cost').value) || 0;
         const local = parseFloat(document.getElementById('local').value) || 0;
@@ -383,140 +307,60 @@
         const z = parseFloat(document.getElementById('z').value) || 0;
         const volW = Math.round((x * y * z / div) * 100) / 100;
         const finalW = Math.max(w, volW); const data = RATES[selectedCode];
+        
         let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
         const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate);
+        
+        // [의장님 요청: 실시간 중량 비교 색상 강조]
+        const wColor = (w >= volW) ? "color:#27ae60; font-weight:bold;" : "color:#444;";
+        const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "color:#444;";
+        
+        liveDetail.innerHTML = `
+            <span>• 실중량: <span style="${wColor}">${w.toFixed(2)}kg</span> / 부피무게: <span style="${volColor}">${volW.toFixed(2)}kg</span></span><br>
+            <span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>
+        `;
+        liveDetail.style.display = 'block';
+
+        if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
+
         const marginVal = parseFloat(marginInput.value) || 0; const fixedPriceVal = preciseKrwValue;
         let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate;
         let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal;
         const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; const marginText = (actualMargin < 0) ? "손해" : "예상 마진";
+        
         document.getElementById('resMarginInfo').style.color = marginColor;
         document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`;
         fInfo.style.color = marginColor;
         fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`;
         bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`;
         document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)";
-        const wColor = (w >= volW) ? "color:#27ae60; font-weight:bold;" : ""; const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
-        document.getElementById('resDetail').innerHTML = `• 최종 무게: <span style="${wColor}">${w.toFixed(2)}kg</span> (<span style="${volColor}">부피:${volW.toFixed(2)}kg</span>)<br>• 배송비: ${shipKrw.toLocaleString()}원 / 지출합계: ${Math.round(expenseSum).toLocaleString()}원`;
         marginInput.classList.toggle('mode-margin', lastField === 'margin'); priceInput.classList.toggle('mode-price', lastField === 'price');
         resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
     }
 
-    function saveInputs() { 
-        const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'buffer', 'duty']; 
-        const data = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; }); 
-        const unitEl = document.querySelector('input[name="priceUnit"]:checked');
-        data['priceUnit'] = unitEl ? unitEl.value : 'krw';
-        data['lastField'] = lastField; data['currentLoadedId'] = currentLoadedId; 
-        localStorage.setItem('nanaCalcData', JSON.stringify(data)); return data; 
-    }
-
-    function loadInputs() { 
-        const saved = localStorage.getItem('nanaCalcData'); 
-        if (saved) { 
-            const data = JSON.parse(saved); applyState(data);
-            if (data.currentLoadedId) { 
-                const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
-                const item = lib.find(i => i.id === data.currentLoadedId); 
-                if(item) { document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; currentLoadedId = data.currentLoadedId; } 
-            } 
-        } 
-    }
-
-    function switchTab(tab) { 
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); 
-        document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); 
-        document.getElementById('tab-' + tab).classList.add('active'); 
-        document.getElementById('tab-' + tab + '-btn').classList.add('active'); 
-        if (tab === 'lib') { 
-            isEditMode = false; 
-            updateLocationAddress(); // 탭 이동시 주소 업데이트
-            renderLibrary(); 
-        } else { loadInputs(); doCalc(); } 
-    }
-
+    function saveInputs() { const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'buffer', 'duty']; const data = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; }); const unitEl = document.querySelector('input[name="priceUnit"]:checked'); data['priceUnit'] = unitEl ? unitEl.value : 'krw'; data['lastField'] = lastField; data['currentLoadedId'] = currentLoadedId; localStorage.setItem('nanaCalcData', JSON.stringify(data)); return data; }
+    function loadInputs() { const saved = localStorage.getItem('nanaCalcData'); if (saved) { const data = JSON.parse(saved); applyState(data); if (data.currentLoadedId) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === data.currentLoadedId); if(item) { document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; currentLoadedId = data.currentLoadedId; } } } }
+    function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isEditMode = false; updateLocationAddress(); renderLibrary(); } else { loadInputs(); doCalc(); } }
+    function updateClock() { const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토']; const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
+    setInterval(updateClock, 1000);
+    function clearField(el, type) { el.value = ''; if (type) lastField = type; if (type === 'price') preciseKrwValue = 0; if (el.id === 'countryInput') showList(); onInputChange(); }
+    function showList() { const listEl = document.getElementById('customList'); listEl.innerHTML = ''; Object.keys(NATION_MAP).forEach(name => { const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country'); div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; listEl.appendChild(div); }); listEl.style.display = 'block'; }
+    function filterList() { const val = document.getElementById('countryInput').value.toLowerCase(); const items = document.getElementById('customList').querySelectorAll('div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; }); }
+    document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-container')) document.getElementById('customList').style.display = 'none'; });
+    function updateLast(type) { lastField = type; onInputChange(); }
     function capturePhoto() { document.getElementById('photoCamera').click(); }
     function openGallery() { document.getElementById('photoGallery').click(); }
-    function handleImg(input) { 
-        if (input.files && input.files[0]) { 
-            const reader = new FileReader(); 
-            reader.onload = (e) => { 
-                const img = new Image(); 
-                img.onload = () => { 
-                    const canvas = document.createElement('canvas'); const width = 400; 
-                    canvas.width = width; canvas.height = img.height * (width / img.width); 
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); 
-                    currentImgBase64 = canvas.toDataURL('image/jpeg', 0.7); 
-                    document.getElementById('preview-container').innerHTML = `<img src="${currentImgBase64}" style="height:100%;">`; 
-                    saveToLibrary(); 
-                }; img.src = e.target.result; 
-            }; reader.readAsDataURL(input.files[0]); 
-        } 
-    }
-
-    function saveToLibrary() { 
-        const title = document.getElementById('saveTitle').value.trim() || "새 상품"; 
-        const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; 
-        const item = { id: Date.now(), title: title, date: dateStr, img: currentImgBase64, data: saveInputs(), lastField: lastField }; 
-        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); 
-        localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); 
-        document.getElementById('saveTitle').value = ""; document.getElementById('preview-container').innerHTML = "미리보기"; currentImgBase64 = ""; 
-    }
-
-    function renderLibrary() { 
-        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
-        const listContainer = document.getElementById('library-list'); 
-        listContainer.innerHTML = lib.length ? "" : "<p style='text-align:center; color:#999; font-size:12px; margin-top:20px;'>목록이 비어있습니다.</p>"; 
-        lib.forEach(item => { 
-            const div = document.createElement('div'); div.className = 'library-item'; 
-            div.onclick = (e) => { if(!isEditMode) loadItem(item.id); else { const cb = div.querySelector('.item-checkbox'); if(e.target !== cb) cb.checked = !cb.checked; } }; 
-            const displayStyle = isEditMode ? 'flex' : 'none'; 
-            div.innerHTML = `<div class="check-wrapper" style="display:${displayStyle}"><input type="checkbox" class="item-checkbox" value="${item.id}" onclick="event.stopPropagation()"></div><img src="${item.img || ''}" onclick="openModal(event, '${item.img}')"><div class="library-info"><div class="library-title">${item.title}</div><div class="library-date">${item.date}</div></div><div style="display:${isEditMode ? 'none' : 'flex'}; gap:5px;"><button style="background:#fee500; color:#3c1e1e; border:none; padding:6px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="shareSNS(event, ${item.id})">SNS</button><div style="color:#ccc; font-size:18px; cursor:pointer; padding:0 5px;" onclick="deleteItem(event, ${item.id})">×</div></div>`; 
-            listContainer.appendChild(div); 
-        }); 
-    }
-
-    function loadItem(id) { 
-        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); 
-        if (item) { 
-            if (!currentLoadedId) lastBackup = saveInputs(); 
-            currentLoadedId = id; applyState(item.data); 
-            lastField = item.lastField || 'margin'; 
-            document.getElementById('loaded-text').innerText = "불러옴: " + item.title; 
-            document.getElementById('loaded-container').style.display = "flex"; 
-            onInputChange(); switchTab('calc'); 
-        } 
-    }
-
-    function unloadItem() { 
-        currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; 
-        if (lastBackup) { applyState(lastBackup); lastBackup = null; } 
-        onInputChange(); 
-    }
-
+    function handleImg(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const width = 400; canvas.width = width; canvas.height = img.height * (width / img.width); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); currentImgBase64 = canvas.toDataURL('image/jpeg', 0.7); document.getElementById('preview-container').innerHTML = `<img src="${currentImgBase64}" style="height:100%;">`; saveToLibrary(); }; img.src = e.target.result; }; reader.readAsDataURL(input.files[0]); } }
+    function saveToLibrary() { const title = document.getElementById('saveTitle').value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, img: currentImgBase64, data: saveInputs(), lastField: lastField }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); document.getElementById('saveTitle').value = ""; document.getElementById('preview-container').innerHTML = "미리보기"; currentImgBase64 = ""; }
+    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = lib.length ? "" : "<p style='text-align:center; color:#999; font-size:12px; margin-top:20px;'>목록이 비어있습니다.</p>"; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item'; div.onclick = (e) => { if(!isEditMode) loadItem(item.id); else { const cb = div.querySelector('.item-checkbox'); if(e.target !== cb) cb.checked = !cb.checked; } }; const displayStyle = isEditMode ? 'flex' : 'none'; div.innerHTML = `<div class="check-wrapper" style="display:${displayStyle}"><input type="checkbox" class="item-checkbox" value="${item.id}" onclick="event.stopPropagation()"></div><img src="${item.img || ''}" onclick="openModal(event, '${item.img}')"><div class="library-info"><div class="library-title">${item.title}</div><div class="library-date">${item.date}</div></div><div style="display:${isEditMode ? 'none' : 'flex'}; gap:5px;"><button style="background:#fee500; color:#3c1e1e; border:none; padding:6px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="shareSNS(event, ${item.id})">SNS</button><div style="color:#ccc; font-size:18px; cursor:pointer; padding:0 5px;" onclick="deleteItem(event, ${item.id})">×</div></div>`; listContainer.appendChild(div); }); }
+    function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { if (!currentLoadedId) lastBackup = saveInputs(); currentLoadedId = id; applyState(item.data); lastField = item.lastField || 'margin'; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; onInputChange(); switchTab('calc'); } }
+    function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) { applyState(lastBackup); lastBackup = null; } onInputChange(); }
     function deleteItem(e, id) { e.stopPropagation(); if(confirm("삭제하시겠습니까?")) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(i => i.id !== id); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
     function toggleEditMode() { isEditMode = !isEditMode; document.getElementById('edit-mode-btn').style.display = isEditMode ? 'none' : 'block'; document.getElementById('multi-del-row').style.display = isEditMode ? 'flex' : 'none'; renderLibrary(); }
-    function deleteSelected() { 
-        const selected = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => parseInt(cb.value)); 
-        if (selected.length === 0) return; 
-        if (confirm(`${selected.length}개를 삭제하시겠습니까?`)) { 
-            let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(item => !selected.includes(item.id)); 
-            localStorage.setItem('nanaLibrary', JSON.stringify(lib)); toggleEditMode(); 
-        } 
-    }
-
-    async function shareSNS(e, id) { 
-        e.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); 
-        if (item && item.img && navigator.share) { 
-            try { 
-                const blob = await (await fetch(item.img)).blob(); const file = new File([blob], `nana_${item.title}.jpg`, { type: 'image/jpeg' }); 
-                await navigator.share({ files: [file], title: '나나 통합 계산기', text: `상품명: ${item.title}` }); 
-            } catch (err) {} 
-        } else alert("공유 미지원 환경입니다."); 
-    }
-
+    function deleteSelected() { const selected = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => parseInt(cb.value)); if (selected.length === 0) return; if (confirm(`${selected.length}개를 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(item => !selected.includes(item.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); toggleEditMode(); } }
+    async function shareSNS(e, id) { e.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item && item.img && navigator.share) { try { const blob = await (await fetch(item.img)).blob(); const file = new File([blob], `nana_${item.title}.jpg`, { type: 'image/jpeg' }); await navigator.share({ files: [file], title: '나나 통합 계산기', text: `상품명: ${item.title}` }); } catch (err) {} } else alert("공유 미지원 환경입니다."); }
     function openModal(e, src) { e.stopPropagation(); document.getElementById('img-modal').style.display = "flex"; document.getElementById('modal-img').src = src; }
     function closeModal() { document.getElementById('img-modal').style.display = "none"; }
-
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); };
 </script>
 </body>
