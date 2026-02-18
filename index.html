@@ -208,8 +208,8 @@
     let historyStack = []; let futureStack = []; let isNavigating = false;
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     
-    // [의장님 지시: 스와이프 감도 77px로 상향 조정]
-    let touchStartX = 0; let touchEndX = 0; const swipeThreshold = 77; 
+    // [의장님 지시: 스와이프 감도 75px로 상향 조정]
+    let touchStartX = 0; let touchEndX = 0; const swipeThreshold = 75; 
     document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
 
