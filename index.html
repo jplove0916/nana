@@ -6,7 +6,8 @@
     <title>나나 통합 계산기</title>
     <style>
         /* [의장님 전용 UI - 냥냥이 기준 코드 100% 준수] */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: pan-y; }
+        /* touch-action을 manipulation으로 수정하여 확대 시 좌우 드래그(Pan)가 가능하도록 개선 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
         .nav-tabs button.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -220,6 +221,7 @@
         touchEndX = e.changedTouches[0].screenX; 
         
         const currentZoom = (window.visualViewport) ? window.visualViewport.scale : 1;
+        // 1.05배 이하일 때만 스와이프 동작 허용 (확대 시 드래그 우선)
         if (currentZoom <= 1.05) { handleSwipe(); }
     }, {passive: true});
 
