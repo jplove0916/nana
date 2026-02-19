@@ -70,10 +70,19 @@
         .thumb-del { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,0.6); color: white; width: 18px; height: 18px; font-size: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; }
 
         .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; box-sizing: border-box; position: relative; min-height: 72px; }
+        .library-item.editing { border-color: #3498db; background: #f0f7ff; }
         .library-item img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; margin-right: 10px; flex-shrink: 0; }
-        .library-info { flex: 1; min-width: 0; }
-        .library-title { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; }
+        .library-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .library-title-row { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+        .library-title { font-size: 13px; font-weight: bold; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .edit-icon { font-size: 12px; color: #999; cursor: pointer; padding: 2px; }
         .library-date { font-size: 10px; color: #999; }
+        
+        .lib-checkbox { width: 18px; height: 18px; margin-right: 10px; display: none; }
+        .lib-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .lib-edit-btn { font-size: 11px; padding: 4px 8px; background: #f0f2f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; }
+        .lib-batch-actions { display: none; gap: 5px; margin-top: 10px; }
+        .batch-btn { flex: 1; padding: 10px; border-radius: 6px; border: none; font-weight: bold; font-size: 12px; cursor: pointer; }
 
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
         #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
@@ -223,8 +232,16 @@
         <button id="batch-save-btn" style="width:100%; margin-top:8px; padding:14px; background:#3498db; color:white; border:none; border-radius:5px; font-weight:800; cursor:pointer; display:none;" onclick="saveToLibrary()">💾 이 구성으로 저장하기</button>
         <input type="file" id="photoGallery" accept="image/*" multiple style="display:none;" onchange="handleImg(this)">
         <hr style="margin:20px 0 10px 0; border:0; border-top:1px solid #eee;">
-        <span style="font-size: 12px; font-weight: bold; color: #27ae60; display: block; margin-bottom: 8px;">저장 목록</span>
+        
+        <div class="lib-header">
+            <span style="font-size: 12px; font-weight: bold; color: #27ae60;">저장 목록</span>
+            <button id="lib-edit-toggle" class="lib-edit-btn" onclick="toggleLibEdit()">편집</button>
+        </div>
         <div id="library-list"></div>
+        <div id="lib-batch-actions" class="lib-batch-actions">
+            <button class="batch-btn" style="background:#e74c3c; color:white;" onclick="deleteSelectedItems()">선택 삭제</button>
+            <button class="batch-btn" style="background:#95a5a6; color:white;" onclick="toggleLibEdit()">취소</button>
+        </div>
     </div>
 </div>
 
@@ -238,7 +255,7 @@
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     let modalImgIdx = 0; let modalImgList = []; let currentItemId = null;
     let videoStream = null; let imgScale = 1; let isPhotoEditMode = false;
-    let mainTouchStartX = 0;
+    let mainTouchStartX = 0; let isLibEditing = false;
 
     /* [스와이프 제어 - 62px 기준] */
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
@@ -246,15 +263,11 @@
         const diffX = e.changedTouches[0].screenX - mainTouchStartX;
         const isModalOpen = document.getElementById('img-modal').style.display === "flex";
         const isCameraOpen = document.getElementById('camera-overlay').style.display === 'flex';
-        
-        // 메인 탭 전환: 62px 기준
         if (!isModalOpen && !isCameraOpen && Math.abs(diffX) > 62) {
             const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
             if (diffX < 0 && currentTab === 'calc') switchTab('lib');
             else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
-        }
-        // 모달 내 사진 전환
-        else if (isModalOpen && !isPhotoEditMode && imgScale === 1 && Math.abs(diffX) > 60) {
+        } else if (isModalOpen && !isPhotoEditMode && imgScale === 1 && Math.abs(diffX) > 60) {
             if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); }
             else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
         }
@@ -430,7 +443,67 @@
     function renderPreviews() { const container = document.getElementById('preview-container'); const saveBtn = document.getElementById('batch-save-btn'); if (currentImgStack.length === 0) { container.innerHTML = "준비된 사진이 없습니다"; saveBtn.style.display = "none"; return; } container.innerHTML = ""; currentImgStack.forEach((img, idx) => { const box = document.createElement('div'); box.className = 'thumb-box'; box.innerHTML = `<img src="${img}"><div class="thumb-del" onclick="removeThumb(${idx})">×</div>`; container.appendChild(box); }); saveBtn.style.display = "block"; }
     function removeThumb(idx) { currentImgStack.splice(idx, 1); renderPreviews(); }
     function saveToLibrary() { const title = document.getElementById('saveTitle').value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, imgList: [...currentImgStack], data: saveInputs(), lastField: lastField }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack = []; document.getElementById('saveTitle').value = ""; renderPreviews(); renderLibrary(); }
-    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = ""; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item'; div.onclick = () => loadItem(item.id); const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; div.innerHTML = `<div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div><div class="library-info"><div class="library-title">${item.title}</div><div class="library-date">${item.date}</div></div><div style="color:#ccc; font-size:22px; cursor:pointer; padding:10px;" onclick="deleteItem(event, ${item.id})">×</div>`; listContainer.appendChild(div); }); }
+    
+    function renderLibrary() { 
+        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
+        const listContainer = document.getElementById('library-list'); 
+        listContainer.innerHTML = ""; 
+        lib.forEach(item => { 
+            const div = document.createElement('div'); 
+            div.className = 'library-item' + (isLibEditing ? ' editing' : ''); 
+            div.onclick = () => { if(!isLibEditing) loadItem(item.id); }; 
+            const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; 
+            div.innerHTML = `
+                <input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()">
+                <div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div>
+                <div class="library-info">
+                    <div class="library-title-row">
+                        <div class="library-title">${item.title}</div>
+                        <span class="edit-icon" onclick="editItemTitle(event, ${item.id})">✏️</span>
+                    </div>
+                    <div class="library-date">${item.date}</div>
+                </div>
+                <div style="color:#ccc; font-size:22px; cursor:pointer; padding:10px;" onclick="deleteItem(event, ${item.id})">×</div>`; 
+            listContainer.appendChild(div); 
+        }); 
+    }
+
+    function toggleLibEdit() {
+        isLibEditing = !isLibEditing;
+        document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집';
+        document.getElementById('lib-batch-actions').style.display = isLibEditing ? 'flex' : 'none';
+        renderLibrary();
+    }
+
+    function deleteSelectedItems() {
+        const cbs = document.querySelectorAll('.lib-checkbox:checked');
+        if (cbs.length === 0) return;
+        if (confirm(`${cbs.length}개의 상품을 삭제하시겠습니까?`)) {
+            let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
+            const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value));
+            lib = lib.filter(i => !idsToDelete.includes(i.id));
+            localStorage.setItem('nanaLibrary', JSON.stringify(lib));
+            toggleLibEdit();
+        }
+    }
+
+    function editItemTitle(e, id) {
+        e.stopPropagation();
+        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
+        let item = lib.find(i => i.id === id);
+        if (item) {
+            const newTitle = prompt("새 제목을 입력하세요", item.title);
+            if (newTitle !== null && newTitle.trim() !== "") {
+                item.title = newTitle.trim();
+                localStorage.setItem('nanaLibrary', JSON.stringify(lib));
+                renderLibrary();
+                if (currentLoadedId === id) {
+                    document.getElementById('loaded-text').innerText = "불러옴: " + item.title;
+                }
+            }
+        }
+    }
+
     function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { if (!currentLoadedId) lastBackup = saveInputs(); currentLoadedId = id; applyState(item.data); lastField = item.lastField || 'margin'; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; onInputChange(); switchTab('calc'); } }
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) { applyState(lastBackup); lastBackup = null; } onInputChange(); }
     function deleteItem(e, id) { e.stopPropagation(); if(confirm("삭제?")) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(i => i.id !== id); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
