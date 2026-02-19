@@ -34,10 +34,13 @@
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
         input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; }
         
+        /* 국가 검색 고정 레이어 수정 */
+        .dropdown-container { position: relative; }
         .search-input { border: 2px solid #2c3e50; background: #f9f9f9; font-weight: bold; }
-        .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #2c3e50; border-top: none; border-radius: 0 0 5px 5px; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .custom-list div { padding: 10px; font-size: 13px; border-bottom: 1px solid #eee; cursor: pointer; color: #333; }
+        .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 2px solid #2c3e50; border-top: none; border-radius: 0 0 5px 5px; z-index: 2000; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .custom-list div { padding: 12px; font-size: 13px; border-bottom: 1px solid #eee; cursor: pointer; color: #333; }
         .custom-list div.highlight-country { background-color: #eafaf1; font-weight: bold; }
+        .custom-list div:active { background-color: #f0f0f0; }
         
         .row { display: flex; gap: 6px; margin-bottom: 8px; align-items: flex-end; }
         .row div { flex: 1; min-width: 0; }
@@ -141,7 +144,7 @@
         <div class="row">
             <div style="flex: 1.4;" class="dropdown-container">
                 <label><span>목적지 국가 검색</span><span id="dot_countryInput" class="req-dot">.</span></label>
-                <input type="text" id="countryInput" class="search-input" value="미국 (USA)" onfocus="clearField(this)" oninput="filterList(); onInputChange();" autocomplete="off">
+                <input type="text" id="countryInput" class="search-input" value="미국 (USA)" onfocus="showList()" oninput="filterList(); onInputChange();" autocomplete="off">
                 <div id="customList" class="custom-list"></div>
             </div>
             <div><label><span>적용 환율</span><span id="dot_ex" class="req-dot">.</span></label><input type="number" id="ex" value="1450" onfocus="clearField(this)" oninput="onInputChange()"></div>
@@ -220,7 +223,7 @@
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
     let calcHistory = []; let historyIndex = -1; let isProcessing = false;
 
-    // [스와이프 로직 - 의장님 지시: 확대 시 방지 보안 적용]
+    // [스와이프 방지 안전장치]
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
         if (e.touches.length > 0 || e.changedTouches.length > 1) return;
@@ -241,6 +244,42 @@
             else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
         }
     }, {passive: false});
+
+    // 외부 클릭 시 국가 리스트 닫기
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown-container')) {
+            document.getElementById('customList').style.display = 'none';
+        }
+    });
+
+    function showList() {
+        const l = document.getElementById('customList');
+        const input = document.getElementById('countryInput');
+        l.innerHTML = '';
+        Object.keys(NATION_MAP).forEach(n => {
+            const d = document.createElement('div');
+            d.innerText = `${n} (${NATION_MAP[n]})`;
+            if (HIGHLIGHTS.includes(n)) d.classList.add('highlight-country');
+            d.onclick = () => {
+                input.value = d.innerText;
+                l.style.display = 'none';
+                onInputChange();
+            };
+            l.appendChild(d);
+        });
+        l.style.display = 'block';
+        input.value = ''; // 입력 편의를 위해 초기화
+    }
+
+    function filterList() {
+        const v = document.getElementById('countryInput').value.toLowerCase();
+        const l = document.getElementById('customList');
+        const items = l.querySelectorAll('div');
+        l.style.display = 'block';
+        items.forEach(i => {
+            i.style.display = i.innerText.toLowerCase().includes(v) ? 'block' : 'none';
+        });
+    }
 
     function deleteCurrentPhoto(e) { if(e){e.preventDefault(); e.stopPropagation();} if(isProcessing) return; if(!confirm("현재 사진을 삭제하시겠습니까?")) return; isProcessing=true; try { modalImgList.splice(modalImgIdx, 1); if(modalImgList.length===0 || !updateLibPhotosSync()){ closeModal(); } else { modalImgIdx=Math.min(modalImgIdx, modalImgList.length-1); showModalImg(); } renderLibrary(); } finally { setTimeout(()=>{isProcessing=false;},300); } }
     function updateLibPhotosSync() { if(!currentLoadedId) return false; let lib=JSON.parse(localStorage.getItem('nanaLibrary')||"[]"); let idx=lib.findIndex(i=>i.id===currentLoadedId); if(idx>-1){ if(modalImgList.length===0){ lib.splice(idx,1); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); unloadItem(); return false; } else { lib[idx].imgList=[...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); return true; } } return false; }
@@ -269,9 +308,7 @@
     function loadInputs() { const s = localStorage.getItem('nanaCalcData'); if (s) { const d = JSON.parse(s); applyState(d); if (d.currentLoadedId) { const item = JSON.parse(localStorage.getItem('nanaLibrary')||"[]").find(i => i.id === d.currentLoadedId); if(item) { currentLoadedId = d.currentLoadedId; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; } } } }
     function updateClock() { const now = new Date(); const clock = document.getElementById('live-clock'); if(clock) clock.innerHTML = `📅 ${now.toLocaleDateString()} &nbsp; ⏰ ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`; }
     setInterval(updateClock, 1000);
-    function clearField(el, t) { el.value=''; if(t) lastField=t; if(el.id==='countryInput') showList(); onInputChange(); }
-    function showList() { const l = document.getElementById('customList'); l.innerHTML = ''; Object.keys(NATION_MAP).forEach(n => { const d = document.createElement('div'); d.innerText=`${n} (${NATION_MAP[n]})`; if(HIGHLIGHTS.includes(n)) d.classList.add('highlight-country'); d.onclick=()=>{ document.getElementById('countryInput').value=d.innerText; l.style.display='none'; onInputChange(); }; l.appendChild(d); }); l.style.display='block'; }
-    function filterList() { const v = document.getElementById('countryInput').value.toLowerCase(); document.getElementById('customList').querySelectorAll('div').forEach(i => i.style.display = i.innerText.toLowerCase().includes(v)?'block':'none'); }
+    function clearField(el, t) { el.value=''; if(t) lastField=t; onInputChange(); }
     function renderPreviews() { const c = document.getElementById('preview-container'); const b = document.getElementById('batch-save-btn'); if(currentImgStack.length===0){ c.innerHTML="준비된 사진이 없습니다"; b.style.display="none"; return; } c.innerHTML=""; currentImgStack.forEach((img,i)=>{ const div=document.createElement('div'); div.className='thumb-box'; div.innerHTML=`<img src="${img}"><div class="thumb-del" onclick="removeThumb(${i})">×</div>`; c.appendChild(div); }); b.style.display="block"; }
     function removeThumb(i) { currentImgStack.splice(i,1); renderPreviews(); }
     function saveToLibrary() { const tIn = document.getElementById('saveTitle'); const now = new Date(); const item = { id: Date.now(), title: tIn.value.trim()||"새 상품", date: now.toLocaleString(), imgList: [...currentImgStack], data: saveInputs() }; let lib = JSON.parse(localStorage.getItem('nanaLibrary')||"[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack=[]; tIn.value=""; renderPreviews(); renderLibrary(); }
