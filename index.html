@@ -87,11 +87,12 @@
         
         /* [개선된 이미지 모달] */
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
-        #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+        #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
         #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s ease-out; cursor: zoom-in; }
         #modal-counter { position:absolute; top:20px; color:white; font-size:14px; font-weight:bold; }
-        #modal-delete-btn { position:absolute; top:20px; right:20px; background:#e74c3c; color:white; padding:8px 15px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer; z-index:10001; }
-        .swipe-hint { position: absolute; bottom: 30px; color: rgba(255,255,255,0.6); font-size: 11px; }
+        #modal-delete-btn { position:absolute; top:20px; left:20px; background:rgba(231, 76, 60, 0.8); color:white; padding:8px 12px; border-radius:5px; font-size:12px; cursor:pointer; z-index:10001; }
+        #modal-share-btn { position:absolute; bottom:20px; right:20px; background:#fee500; color:#3c1e1e; padding:12px 20px; border-radius:30px; font-size:14px; font-weight:bold; cursor:pointer; z-index:10001; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 5px; }
+        .swipe-hint { position: absolute; bottom: 80px; color: rgba(255,255,255,0.6); font-size: 11px; }
     </style>
 </head>
 <body>
@@ -107,11 +108,14 @@
 
 <div id="img-modal" onclick="closeModal()">
     <div id="modal-counter"></div>
-    <div id="modal-delete-btn" onclick="deleteSinglePhoto(event)">이 사진 삭제</div>
+    <div id="modal-delete-btn" onclick="deleteSinglePhoto(event)">삭제</div>
     <div id="modal-img-container">
-        <img id="modal-img" src="">
+        <img id="modal-img" src="" onclick="toggleZoom(event)">
     </div>
-    <div class="swipe-hint">← 좌우 스와이프 / 클릭 시 확대 →</div>
+    <div id="modal-share-btn" onclick="shareCurrentImg(event)">
+        <span style="font-size:16px;">📲</span> SNS 공유
+    </div>
+    <div class="swipe-hint">이미지 클릭: 확대/축소 | 좌우 스와이프: 이동</div>
 </div>
 
 <div class="nav-tabs">
@@ -321,8 +325,24 @@
         mImg.style.transform = "scale(1)"; imgScale = 1;
         document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`;
     }
+
+    /* [확대/축소 토글 기능] */
+    function toggleZoom(e) {
+        e.stopPropagation();
+        const img = document.getElementById('modal-img');
+        if (imgScale === 1) {
+            imgScale = 2.2;
+            img.style.transform = "scale(2.2)";
+            img.style.cursor = "zoom-out";
+        } else {
+            imgScale = 1;
+            img.style.transform = "scale(1)";
+            img.style.cursor = "zoom-in";
+        }
+    }
     
     function changeModalImg(dir) { 
+        if (imgScale !== 1) return; // 확대 중에는 스와이프 방지
         modalImgIdx += dir; 
         if(modalImgIdx < 0) modalImgIdx = modalImgList.length - 1; 
         if(modalImgIdx >= modalImgList.length) modalImgIdx = 0; 
@@ -347,12 +367,26 @@
         }
     }
 
-    document.getElementById('modal-img').onclick = function(e) {
+    /* [모달 내 SNS 공유 기능] */
+    async function shareCurrentImg(e) {
         e.stopPropagation();
-        imgScale = (imgScale === 1) ? 2.2 : 1;
-        this.style.transform = `scale(${imgScale})`;
-        this.style.cursor = (imgScale === 1) ? "zoom-in" : "zoom-out";
-    };
+        const currentImgData = modalImgList[modalImgIdx];
+        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
+        const item = lib.find(i => i.id === currentItemId);
+        if (!currentImgData || !navigator.share) {
+            alert("공유를 지원하지 않는 환경입니다.");
+            return;
+        }
+        try {
+            const blob = await (await fetch(currentImgData)).blob();
+            const file = new File([blob], `nana_${item ? item.title : 'product'}.jpg`, { type: 'image/jpeg' });
+            await navigator.share({
+                files: [file],
+                title: '나나 통합 계산기',
+                text: `상품명: ${item ? item.title : '상품 공유'}`
+            });
+        } catch (err) {}
+    }
 
     function closeModal() { 
         document.getElementById('img-modal').style.display = "none"; 
@@ -437,13 +471,12 @@
     function renderPreviews() { const container = document.getElementById('preview-container'); const saveBtn = document.getElementById('batch-save-btn'); if (currentImgStack.length === 0) { container.innerHTML = "준비된 사진이 없습니다"; saveBtn.style.display = "none"; return; } container.innerHTML = ""; currentImgStack.forEach((img, idx) => { const box = document.createElement('div'); box.className = 'thumb-box'; box.innerHTML = `<img src="${img}"><div class="thumb-del" onclick="removeThumb(${idx})">×</div>`; container.appendChild(box); }); saveBtn.style.display = "block"; }
     function removeThumb(idx) { currentImgStack.splice(idx, 1); renderPreviews(); }
     function saveToLibrary() { const title = document.getElementById('saveTitle').value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, imgList: [...currentImgStack], data: saveInputs(), lastField: lastField }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack = []; document.getElementById('saveTitle').value = ""; renderPreviews(); renderLibrary(); }
-    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = lib.length ? "" : "<p style='text-align:center; color:#999; font-size:12px; margin-top:20px;'>목록이 비어있습니다.</p>"; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item'; div.onclick = (e) => { if(!isEditMode) loadItem(item.id); else { const cb = div.querySelector('.item-checkbox'); if(e.target !== cb) cb.checked = !cb.checked; } }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; const imgCountTag = (item.imgList && item.imgList.length > 1) ? `<span style="position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,0.6); color:white; font-size:9px; padding:1px 3px; border-radius:3px;">+${item.imgList.length-1}</span>` : ''; div.innerHTML = `<div class="check-wrapper" style="display:${isEditMode ? 'flex' : 'none'}"><input type="checkbox" class="item-checkbox" value="${item.id}" onclick="event.stopPropagation()"></div><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})">${imgCountTag}</div><div class="library-info"><div class="library-title">${item.title}</div><div class="library-date">${item.date}</div></div><div style="display:${isEditMode ? 'none' : 'flex'}; gap:5px;"><button style="background:#fee500; color:#3c1e1e; border:none; padding:6px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;" onclick="shareSNS(event, ${item.id})">SNS</button><div style="color:#ccc; font-size:18px; cursor:pointer; padding:0 5px;" onclick="deleteItem(event, ${item.id})">×</div></div>`; listContainer.appendChild(div); }); }
+    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = lib.length ? "" : "<p style='text-align:center; color:#999; font-size:12px; margin-top:20px;'>목록이 비어있습니다.</p>"; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item'; div.onclick = (e) => { if(!isEditMode) loadItem(item.id); else { const cb = div.querySelector('.item-checkbox'); if(e.target !== cb) cb.checked = !cb.checked; } }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; const imgCountTag = (item.imgList && item.imgList.length > 1) ? `<span style="position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,0.6); color:white; font-size:9px; padding:1px 3px; border-radius:3px;">+${item.imgList.length-1}</span>` : ''; div.innerHTML = `<div class="check-wrapper" style="display:${isEditMode ? 'flex' : 'none'}"><input type="checkbox" class="item-checkbox" value="${item.id}" onclick="event.stopPropagation()"></div><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})">${imgCountTag}</div><div class="library-info"><div class="library-title">${item.title}</div><div class="library-date">${item.date}</div></div><div style="display:${isEditMode ? 'none' : 'flex'}; align-items:center;"><div style="color:#ccc; font-size:22px; cursor:pointer; padding:10px;" onclick="deleteItem(event, ${item.id})">×</div></div>`; listContainer.appendChild(div); }); }
     function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { if (!currentLoadedId) lastBackup = saveInputs(); currentLoadedId = id; applyState(item.data); lastField = item.lastField || 'margin'; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; onInputChange(); switchTab('calc'); } }
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) { applyState(lastBackup); lastBackup = null; } onInputChange(); }
     function deleteItem(e, id) { e.stopPropagation(); if(confirm("삭제하시겠습니까?")) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(i => i.id !== id); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
     function toggleEditMode() { isEditMode = !isEditMode; document.getElementById('edit-mode-btn').style.display = isEditMode ? 'none' : 'block'; document.getElementById('multi-del-row').style.display = isEditMode ? 'flex' : 'none'; renderLibrary(); }
     function deleteSelected() { const selected = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => parseInt(cb.value)); if (selected.length === 0) return; if (confirm(`${selected.length}개를 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(item => !selected.includes(item.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); toggleEditMode(); } }
-    async function shareSNS(e, id) { e.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item && item.imgList && item.imgList[0] && navigator.share) { try { const blob = await (await fetch(item.imgList[0])).blob(); const file = new File([blob], `nana_${item.title}.jpg`, { type: 'image/jpeg' }); await navigator.share({ files: [file], title: '나나 통합 계산기', text: `상품명: ${item.title}` }); } catch (err) {} } else alert("공유 미지원 환경입니다."); }
     function updateLocationAddress() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { try { const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`); const data = await res.json(); if (data && data.address) { const road = data.address.road || ""; const houseNumber = data.address.house_number || ""; const suburb = data.address.suburb || ""; let fullAddr = `${road} ${houseNumber} ${suburb} `.trim(); if(fullAddr) { const titleInput = document.getElementById('saveTitle'); if(!titleInput.value) titleInput.value = fullAddr; } } } catch (e) {} }, null, { enableHighAccuracy: true, timeout: 5000 }); }
     function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const maxVol = w * div; const side = Math.pow(maxVol, 1/3); const totalSum = Math.floor(side * 3); guideEl.innerText = `[크기: ${totalSum}cm]`; } else guideEl.innerText = ""; }
     
