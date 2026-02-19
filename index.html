@@ -97,8 +97,11 @@
         .edit-thumb-box { position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:2px solid #eee; }
         .edit-thumb-box img { width:100%; height:100%; object-fit:cover; }
         .photo-cb { position:absolute; top:5px; right:5px; width:22px; height:22px; z-index:2; }
-        #edit-actions { display:none; position:fixed; bottom:15%; width:85%; justify-content:center; gap:10px; z-index:10004; background: white; padding: 15px 0; border-top: 1px solid #eee; }
-        .action-btn { flex: 1; padding:12px 0; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* [의장님 지시: 취소 버튼 정렬 밀림 수정] */
+        #edit-actions { display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); width:90%; justify-content:center; gap:10px; z-index:10004; background:white; padding:15px; border-radius:20px; box-shadow:0 -5px 20px rgba(0,0,0,0.1); box-sizing:border-box; }
+        .action-btn { flex:1; padding:12px 0; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+        
         .unit-selector { display: flex; gap: 8px; align-items: center; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #eee; margin-left: 10px; }
         .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
         .unit-label { font-size: 9px; font-weight: bold; color: #555; cursor: pointer; margin-left: -4px; }
@@ -221,7 +224,7 @@
 
 <script>
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
-    const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
+    const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
     let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null;
     let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
@@ -251,13 +254,31 @@
         }, null, { enableHighAccuracy: true });
     }
 
-    window.addEventListener('popstate', function(event) {
+    /* [의장님 지시: 핸드폰 뒤로 가기 버튼 연동 및 전단계 이동 로직] */
+    window.onpopstate = function(event) {
         const modal = document.getElementById('img-modal');
+        const camera = document.getElementById('camera-overlay');
+        
+        // 1. 카메라 켜져 있으면 끄기
+        if (camera.style.display === 'flex') {
+            stopCamera();
+            return;
+        }
+        
+        // 2. 모달 열려 있으면 처리
         if (modal.style.display === 'flex') {
-            modal.style.display = 'none';
+            const view = document.getElementById('photo-edit-view');
+            if (view.style.display === 'block') {
+                // 편집 뷰가 열려있으면 편집 뷰만 닫기
+                togglePhotoEdit({ stopPropagation: () => {} });
+            } else {
+                // 전체 모달 닫기
+                modal.style.display = 'none';
+            }
+            // 브라우저가 실제로 뒤로 가는 것을 막기 위해 현재 상태 재고정
             history.pushState(null, null, window.location.pathname);
         }
-    });
+    };
 
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
@@ -307,7 +328,6 @@
     function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
     function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
 
-    /* [의장님 수정 지시 사항: 무게 비교 녹색 강조 로직 복구] */
     function doCalc() { 
         updateBoxGuide(); 
         const marginInput = document.getElementById('margin'); 
@@ -334,7 +354,6 @@
             const input = document.getElementById(id); 
             const dot = document.getElementById('dot_' + id); 
             const val = input.value.trim(); 
-            // 무게가 '1' 미만일 경우 빨간 점이 없어지지 않는 규칙 준수
             let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) < 1) : (val === ""); 
             dot.style.visibility = isInvalid ? "visible" : "hidden"; 
         }); 
@@ -365,7 +384,6 @@
         const expenseSum = cost + local + pack + duty + shipKrw; 
         const bepKrw = (expenseSum / bufferRate); 
 
-        // [무게 강조 로직 복구 지점]
         const wColor = (w >= volW && w > 0) ? "color:#27ae60; font-weight:bold;" : "";
         const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
 
@@ -393,7 +411,7 @@
     }
 
     function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; document.getElementById('lib-batch-del').style.display = 'none'; document.getElementById('lib-edit-toggle').innerText = '편집'; updateAddressTitle(); renderLibrary(); } else { loadInputs(); doCalc(); } }
-    async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; } catch (err) { alert("카메라 권한 필요"); } }
+    async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; history.pushState({view: 'camera'}, null, window.location.pathname); } catch (err) { alert("카메라 권한 필요"); } }
     function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; renderPreviews(); }
     function takePhoto() { const video = document.getElementById('camera-video'); const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); currentImgStack.push(canvas.toDataURL('image/jpeg', 0.7)); document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; }
     function updatePriceInput(val) { lastField = 'price'; const ex = parseFloat(document.getElementById('ex').value) || 1; const isUsd = document.getElementById('unitUsd').checked; const numVal = parseFloat(val) || 0; preciseKrwValue = isUsd ? numVal * ex : numVal; }
@@ -413,7 +431,7 @@
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) applyState(lastBackup); onInputChange(); }
     function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const side = Math.pow(w * div, 1/3); guideEl.innerText = `[크기: ${Math.floor(side * 3)}cm]`; } else guideEl.innerText = ""; }
     function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
-    function openModalWithList(e, list, itemId) { e.stopPropagation(); if(!list || list.length === 0) return; modalImgList = list; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState(null, null, window.location.pathname); }
+    function openModalWithList(e, list, itemId) { e.stopPropagation(); if(!list || list.length === 0) return; modalImgList = list; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState({view: 'modal'}, null, window.location.pathname); }
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
     function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; }
     function updateLast(type) { lastField = type; }
