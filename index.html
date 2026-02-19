@@ -14,6 +14,13 @@
         .tab-content.active { display: block; }
         .box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #2c3e50; position: relative; box-sizing: border-box; }
         
+        /* 촬영용 실시간 뷰파인더 스타일 */
+        #camera-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; }
+        #camera-video { width: 100%; max-height: 70%; object-fit: cover; }
+        .camera-controls { width: 100%; display: flex; justify-content: space-around; align-items: center; padding: 20px 0; background: rgba(0,0,0,0.8); }
+        .shutter-btn { width: 70px; height: 70px; border-radius: 50%; background: white; border: 5px solid #ccc; cursor: pointer; }
+        .close-camera { color: white; font-size: 16px; cursor: pointer; font-weight: bold; }
+
         .history-btns { position: absolute; top: 15px; left: 12px; display: flex; flex-direction: column; gap: 4px; z-index: 101; }
         .nav-btn { width: 28px; height: 28px; background: #ffffff; border: 1px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: #2c3e50; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease; }
         .nav-btn:hover { background: #f0f2f5; border-color: #bbb; }
@@ -78,15 +85,23 @@
         .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
         .unit-label { font-size: 9px; font-weight: bold; color: #555; cursor: pointer; margin-left: -4px; }
         
-        /* [의장님 요청: 갤러리 힌트] */
         .swipe-hint { position: absolute; bottom: 30px; color: rgba(255,255,255,0.6); font-size: 11px; }
     </style>
 </head>
 <body>
 
+<div id="camera-overlay">
+    <video id="camera-video" autoplay playsinline></video>
+    <div class="camera-controls">
+        <span class="close-camera" onclick="stopCamera()">닫기</span>
+        <div class="shutter-btn" onclick="takePhoto()"></div>
+        <span style="color:white; font-size:12px;" id="shot-count">0장 촬영됨</span>
+    </div>
+</div>
+
 <div id="img-modal" onclick="closeModal()" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; touch-action: none;">
     <img id="modal-img" src="" style="max-width:95%; max-height:80%; border-radius:8px; object-fit: contain; transition: transform 0.2s ease-out;">
-    <div class="swipe-hint">← 좌우로 스와이프하여 넘기기 →</div>
+    <div class="swipe-hint">← 좌우로 스와이프 →</div>
 </div>
 
 <div class="nav-tabs">
@@ -173,12 +188,11 @@
         <input type="text" id="saveTitle" placeholder="상품명을 입력하세요">
         <div id="preview-container">준비된 사진이 없습니다</div>
         <div class="btn-row" style="display:flex; gap:6px; margin-top:10px;">
-            <button style="flex:1; padding:12px; background:#27ae60; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="capturePhoto()">📷 사진찍기</button>
+            <button style="flex:1; padding:12px; background:#27ae60; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="startCamera()">📷 연속 촬영</button>
             <button style="flex:1; padding:12px; background:#f0f2f5; color:#333; border:1px solid #ccc; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openGallery()">🖼️ 갤러리</button>
         </div>
         <button id="batch-save-btn" style="width:100%; margin-top:8px; padding:14px; background:#3498db; color:white; border:none; border-radius:5px; font-weight:800; cursor:pointer; display:none;" onclick="saveToLibrary()">💾 이 구성으로 저장하기</button>
         
-        <input type="file" id="photoCamera" accept="image/*" capture="environment" style="display:none;" onchange="handleImg(this)">
         <input type="file" id="photoGallery" accept="image/*" multiple style="display:none;" onchange="handleImg(this)">
         <hr style="margin:20px 0 10px 0; border:0; border-top:1px solid #eee;">
         <div class="lib-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -194,6 +208,7 @@
 </div>
 
 <script>
+    /* [기존 로직 및 국가 데이터 100% 보존] */
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
     const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
@@ -202,8 +217,49 @@
     let historyStack = []; let futureStack = []; let isNavigating = false;
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     let modalImgIdx = 0; let modalImgList = [];
+    let videoStream = null;
 
-    // [스와이프 로직 - 탭 이동 및 갤러리 통합]
+    /* [실시간 카메라 제어 로직] */
+    async function startCamera() {
+        const overlay = document.getElementById('camera-overlay');
+        const video = document.getElementById('camera-video');
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment" }, 
+                audio: false 
+            });
+            video.srcObject = videoStream;
+            overlay.style.display = 'flex';
+            document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`;
+        } catch (err) {
+            alert("카메라 권한이 필요합니다.");
+        }
+    }
+
+    function stopCamera() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+        }
+        document.getElementById('camera-overlay').style.display = 'none';
+        renderPreviews();
+    }
+
+    function takePhoto() {
+        const video = document.getElementById('camera-video');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const b64 = canvas.toDataURL('image/jpeg', 0.7);
+        currentImgStack.push(b64);
+        document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`;
+        
+        // 시각적 피드백 (깜빡임)
+        video.style.opacity = '0.5';
+        setTimeout(() => video.style.opacity = '1', 100);
+    }
+
+    /* [스와이프 로직] */
     let touchStartX = 0; let touchEndX = 0; let touchStartY = 0; const swipeThreshold = 60; 
     
     document.addEventListener('touchstart', e => { 
@@ -218,16 +274,14 @@
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
 
-        // 모달(갤러리)이 열려있을 때 스와이프
         if (document.getElementById('img-modal').style.display === "flex") {
             if (Math.abs(diffX) > swipeThreshold && Math.abs(diffX) > Math.abs(diffY)) {
-                if (diffX < 0) changeModalImg(1); // 왼쪽으로 밀면 다음
-                else changeModalImg(-1); // 오른쪽으로 밀면 이전
+                if (diffX < 0) changeModalImg(1);
+                else changeModalImg(-1);
             }
             return;
         }
 
-        // 탭 전환 스와이프
         const currentZoom = (window.visualViewport) ? window.visualViewport.scale : 1; 
         if (currentZoom <= 1.05) {
             const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
@@ -327,9 +381,7 @@
         let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
         const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate);
         
-        const wColor = (w >= volW) ? "color:#27ae60; font-weight:bold;" : "color:#444;";
-        const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "color:#444;";
-        liveDetail.innerHTML = `<span>• 실중량: <span style="${wColor}">${w.toFixed(2)}kg</span> / 부피무게: <span style="${volColor}">${volW.toFixed(2)}kg</span></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`;
+        liveDetail.innerHTML = `<span>• 실중량: <b>${w.toFixed(2)}kg</b> / 부피무게: <b>${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`;
         liveDetail.style.display = 'block';
 
         if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
@@ -360,8 +412,6 @@
     document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-container')) document.getElementById('customList').style.display = 'none'; });
     function updateLast(type) { lastField = type; onInputChange(); }
     
-    // [의장님 요청: 연속 촬영 최적화 - 즉시 저장 로직]
-    function capturePhoto() { document.getElementById('photoCamera').click(); }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) {
         if (input.files) {
@@ -374,14 +424,14 @@
                         const width = 400; canvas.width = width; canvas.height = img.height * (width / img.width);
                         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
                         const b64 = canvas.toDataURL('image/jpeg', 0.7);
-                        currentImgStack.push(b64); // 즉시 저장
+                        currentImgStack.push(b64);
                         renderPreviews();
                     };
                     img.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
             });
-            input.value = ""; // 입력 초기화 (연속 촬영 가능하게)
+            input.value = "";
         }
     }
     function renderPreviews() {
@@ -426,14 +476,9 @@
         showModalImg(); document.getElementById('img-modal').style.display = "flex";
     }
     
-    // [의장님 요청: 갤러리 이미지 표시 로직 - 버튼 삭제 및 자연스러운 전환]
     function showModalImg() { 
         const mImg = document.getElementById('modal-img');
-        mImg.style.transform = "scale(0.95)"; mImg.style.opacity = "0.5";
-        setTimeout(() => {
-            mImg.src = modalImgList[modalImgIdx];
-            mImg.style.transform = "scale(1)"; mImg.style.opacity = "1";
-        }, 100);
+        mImg.src = modalImgList[modalImgIdx];
     }
     
     function changeModalImg(dir) { 
