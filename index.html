@@ -90,8 +90,8 @@
         #modal-top-bar { position:absolute; top:20px; left:0; width:100%; display:flex; justify-content:center; align-items:center; padding:0 20px; box-sizing:border-box; z-index:10002; }
         #modal-counter { color:white; font-size:14px; font-weight:bold; }
         .modal-bottom-btns { position: absolute; right: 20px; bottom: 40px; display: flex; flex-direction: column; gap: 12px; z-index: 10005; }
-        #photo-edit-btn { background:rgba(255,255,255,0.25); color:white; border:1px solid rgba(255,255,255,0.5); padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; backdrop-filter: blur(5px); }
-        #direct-del-btn { background:rgba(231,76,60,0.85); color:white; border:none; padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; font-weight:bold; }
+        #photo-edit-btn { background:rgba(255,255,255,0.25); color:white; border:1px solid rgba(255,255,255,0.5); padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; backdrop-filter: blur(5px); pointer-events: auto; }
+        #direct-del-btn { background:rgba(231,76,60,0.85); color:white; border:none; padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; font-weight:bold; pointer-events: auto; }
         #photo-edit-view { display:none; width:90%; height:85%; overflow-y:auto; background:white; border-radius:12px; padding:20px; box-sizing:border-box; z-index:10003; }
         .edit-thumb-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; padding-bottom: 80px; }
         .edit-thumb-box { position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:2px solid #eee; }
@@ -120,14 +120,14 @@
 <div id="img-modal" onclick="closeModal()">
     <div id="modal-top-bar"><span id="modal-counter"></span></div>
     <div id="modal-img-container"><img id="modal-img" src="" onclick="toggleZoom(event)"></div>
-    <div class="modal-bottom-btns" id="modal-controls" onclick="event.stopPropagation()">
-        <button id="direct-del-btn" onclick="deleteCurrentPhoto(event)">삭제</button>
-        <button id="photo-edit-btn" onclick="togglePhotoEdit(event)">편집/공유</button>
+    <div class="modal-bottom-btns" id="modal-controls" onclick="event.stopPropagation()" ontouchend="event.stopPropagation()">
+        <button id="direct-del-btn" onclick="deleteCurrentPhoto(event)" ontouchend="deleteCurrentPhoto(event)">삭제</button>
+        <button id="photo-edit-btn" onclick="togglePhotoEdit(event)" ontouchend="togglePhotoEdit(event)">편집/공유</button>
     </div>
-    <div id="photo-edit-view" onclick="event.stopPropagation()">
+    <div id="photo-edit-view" onclick="event.stopPropagation()" ontouchend="event.stopPropagation()">
         <h4 style="margin:0 0 15px 0; text-align:center; color:#333;">사진 선택</h4>
         <div id="edit-thumb-grid" class="edit-thumb-grid"></div>
-        <div id="edit-actions">
+        <div id="edit-actions" onclick="event.stopPropagation()" ontouchend="event.stopPropagation()">
             <button class="action-btn" style="background:#e74c3c; color:white;" onclick="deleteSelectedPhotos(event)">삭제</button>
             <button class="action-btn" style="background:#fee500; color:#3c1e1e;" onclick="shareSelectedPhotos(event)">공유</button>
             <button class="action-btn" style="background:#95a5a6; color:white;" onclick="togglePhotoEdit(event)">취소</button>
@@ -230,55 +230,34 @@
     let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
     let calcHistory = []; let historyIndex = -1;
+    let isProcessing = false; // 중복 실행 방지 플래그
 
-    /* [의장님 분석 해결 포인트 1: 삭제 즉시 UI 강제 갱신] */
+    /* [스와이프 즉각 반응 해결 로직] */
     function deleteCurrentPhoto(e) { 
-        e.stopPropagation(); 
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (isProcessing) return;
         if (!confirm("현재 사진을 삭제하시겠습니까?")) return;
 
-        // 1. 메모리에서 삭제
-        modalImgList.splice(modalImgIdx, 1); 
-        
-        // 2. 저장소 데이터 즉시 반영 (여기서 실시간 업데이트가 일어남)
-        const isSuccess = updateLibPhotosSync(); 
-
-        if (modalImgList.length === 0 || !isSuccess) {
-            closeModal(); 
-        } else { 
-            modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); 
-            showModalImg(); // 다음 사진 즉시 렌더링
+        isProcessing = true;
+        try {
+            modalImgList.splice(modalImgIdx, 1); 
+            const isSuccess = updateLibPhotosSync(); 
+            if (modalImgList.length === 0 || !isSuccess) {
+                closeModal(); 
+            } else { 
+                modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); 
+                showModalImg(); 
+            }
+            renderLibrary(); 
+        } finally {
+            setTimeout(() => { isProcessing = false; }, 300);
         }
-        renderLibrary(); // 하단 리스트 즉시 갱신
     }
 
-    function deleteSelectedPhotos(e) { 
-        e.stopPropagation(); 
-        const cbs = document.querySelectorAll('.photo-cb:checked'); 
-        if (cbs.length === 0) return; 
-        if (!confirm(`${cbs.length}장의 사진을 삭제할까요?`)) return;
-
-        const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); 
-        indices.forEach(idx => modalImgList.splice(idx, 1)); 
-        
-        updateLibPhotosSync();
-        
-        if (modalImgList.length === 0) {
-            togglePhotoEdit(e);
-            closeModal();
-        } else {
-            renderEditThumbs(); // 편집창 그리드 즉시 갱신
-            modalImgIdx = 0;
-            showModalImg();
-        }
-        renderLibrary(); // 하단 리스트 즉시 갱신
-    }
-
-    /* [포인트 2: 저장소와 모달 리스트 동기화 함수 보강] */
     function updateLibPhotosSync() {
         if (!currentLoadedId) return false;
         let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
         let idx = lib.findIndex(i => i.id === currentLoadedId);
-        
         if (idx > -1) {
             if (modalImgList.length === 0) {
                 lib.splice(idx, 1);
@@ -294,15 +273,30 @@
         return false;
     }
 
-    /* [기존 로직 100% 동일 유지] */
+    /* [기존 기능 유지] */
     function updateAddressTitle() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { const { latitude, longitude } = pos.coords; try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`); const data = await response.json(); if (data && data.address) { const addr = data.address; const road = addr.road || addr.pedestrian || ""; const bNum = addr.house_number || ""; const suburb = addr.suburb || addr.neighbourhood || ""; let finalAddr = `${road} ${bNum} ${suburb}`.trim(); const titleInput = document.getElementById('saveTitle'); if(finalAddr && (titleInput.value === "" || titleInput.dataset.auto === "true")) { titleInput.value = finalAddr; titleInput.dataset.auto = "true"; } } } catch (e) { console.log("주소 변환 실패"); } }, null, { enableHighAccuracy: true }); }
-    window.onpopstate = function(event) { const modal = document.getElementById('img-modal'); const camera = document.getElementById('camera-overlay'); if (camera.style.display === 'flex') { stopCamera(); return; } if (modal.style.display === 'flex') { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') { togglePhotoEdit({ stopPropagation: () => {} }); } else { modal.style.display = 'none'; } history.pushState(null, null, window.location.pathname); } };
+    window.onpopstate = function(event) { const modal = document.getElementById('img-modal'); const camera = document.getElementById('camera-overlay'); if (camera.style.display === 'flex') { stopCamera(); return; } if (modal.style.display === 'flex') { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') { togglePhotoEdit({ stopPropagation: () => {}, preventDefault: () => {} }); } else { modal.style.display = 'none'; } history.pushState(null, null, window.location.pathname); } };
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', e => { const diffX = e.changedTouches[0].screenX - mainTouchStartX; const modal = document.getElementById('img-modal'); const isModalOpen = modal.style.display === "flex"; const isEditView = document.getElementById('photo-edit-view').style.display === "block"; if (!isModalOpen && Math.abs(diffX) > 62) { const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib'; if (diffX < 0 && currentTab === 'calc') switchTab('lib'); else if (diffX > 0 && currentTab === 'lib') switchTab('calc'); } else if (isModalOpen && !isEditView && Math.abs(diffX) > 60) { if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); } else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); } } }, {passive: true});
+    document.addEventListener('touchend', e => {
+        const diffX = e.changedTouches[0].screenX - mainTouchStartX;
+        const modal = document.getElementById('img-modal');
+        const isModalOpen = modal.style.display === "flex";
+        const isEditView = document.getElementById('photo-edit-view').style.display === "block";
+        if (e.target.closest('.modal-bottom-btns')) return;
+        if (isModalOpen && !isEditView && Math.abs(diffX) > 60) {
+            if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); } 
+            else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
+        } else if (!isModalOpen && Math.abs(diffX) > 62) {
+            const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
+            if (diffX < 0 && currentTab === 'calc') switchTab('lib');
+            else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
+        }
+    }, {passive: false});
 
-    function togglePhotoEdit(e) { e.stopPropagation(); const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; } }
+    function togglePhotoEdit(e) { if(e) { e.preventDefault(); e.stopPropagation(); } if(isProcessing) return; isProcessing=true; const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; } setTimeout(() => { isProcessing = false; }, 300); }
     function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
-    async function shareSelectedPhotos(e) { e.stopPropagation(); const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!navigator.share) return; try { const filesArray = []; const selectedIndices = Array.from(cbs).map(cb => parseInt(cb.value)); for (let idx of selectedIndices) { const dataUrl = modalImgList[idx]; const response = await fetch(dataUrl); const blob = await response.blob(); const file = new File([blob], `nana_${idx}.jpg`, { type: 'image/jpeg' }); filesArray.push(file); } if (navigator.canShare && navigator.canShare({files: filesArray})) await navigator.share({files: filesArray}); } catch (err) { console.log(err); } }
+    async function shareSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!navigator.share) return; try { const filesArray = []; const selectedIndices = Array.from(cbs).map(cb => parseInt(cb.value)); for (let idx of selectedIndices) { const dataUrl = modalImgList[idx]; const response = await fetch(dataUrl); const blob = await response.blob(); const file = new File([blob], `nana_${idx}.jpg`, { type: 'image/jpeg' }); filesArray.push(file); } if (navigator.canShare && navigator.canShare({files: filesArray})) await navigator.share({files: filesArray}); } catch (err) { console.log(err); } }
+    function deleteSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!confirm(`${cbs.length}장의 사진을 삭제할까요?`)) return; const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotosSync(); if (modalImgList.length === 0) { togglePhotoEdit(e); closeModal(); } else { renderEditThumbs(); modalImgIdx = 0; showModalImg(); } renderLibrary(); }
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() { const data = saveInputs(); if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) { calcHistory = calcHistory.slice(0, historyIndex + 1); calcHistory.push(JSON.parse(JSON.stringify(data))); if (calcHistory.length > 30) calcHistory.shift(); historyIndex = calcHistory.length - 1; } doCalc(); }
@@ -331,19 +325,7 @@
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) applyState(lastBackup); onInputChange(); }
     function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const side = Math.pow(w * div, 1/3); guideEl.innerText = `[크기: ${Math.floor(side * 3)}cm]`; } else guideEl.innerText = ""; }
     function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
-    function openModalWithList(event, itemId) { 
-        event.stopPropagation(); 
-        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
-        const item = lib.find(i => i.id === itemId);
-        if(!item || !item.imgList || item.imgList.length === 0) return;
-        
-        modalImgList = [...item.imgList]; 
-        modalImgIdx = 0; 
-        currentLoadedId = itemId; 
-        showModalImg(); 
-        document.getElementById('img-modal').style.display = "flex"; 
-        history.pushState({view: 'modal'}, null, window.location.pathname); 
-    }
+    function openModalWithList(event, itemId) { event.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === itemId); if(!item || !item.imgList || item.imgList.length === 0) return; modalImgList = [...item.imgList]; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState({view: 'modal'}, null, window.location.pathname); }
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
     function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; }
     function updateLast(type) { lastField = type; }
