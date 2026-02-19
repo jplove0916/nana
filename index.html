@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>나나 통합 계산기</title>
     <style>
-        /* UI 및 스타일은 1%도 변경 없이 유지 */
+        /* [의장님 지시: 기존 UI 및 정교한 로직 100% 유지] */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; overflow-x: hidden; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
@@ -13,55 +13,95 @@
         .tab-content { display: none; width: 100%; max-width: 320px; }
         .tab-content.active { display: block; }
         .box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #2c3e50; position: relative; box-sizing: border-box; }
+        
         #camera-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; }
         #camera-video { width: 100%; max-height: 70%; object-fit: cover; }
         .camera-controls { width: 100%; display: flex; justify-content: space-around; align-items: center; padding: 20px 0; background: rgba(0,0,0,0.8); }
         .shutter-btn { width: 70px; height: 70px; border-radius: 50%; background: white; border: 5px solid #ccc; cursor: pointer; }
         .close-camera { color: white; font-size: 16px; cursor: pointer; font-weight: bold; }
+
         .history-btns { position: absolute; top: 15px; left: 12px; display: flex; flex-direction: column; gap: 4px; z-index: 101; }
-        .nav-btn { width: 28px; height: 28px; background: #ffffff; border: 1px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: #2c3e50; }
+        .nav-btn { width: 28px; height: 28px; background: #ffffff; border: 1px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; color: #2c3e50; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease; }
+        .nav-btn:hover { background: #f0f2f5; border-color: #bbb; }
+        .nav-btn:active { transform: scale(0.92); background: #e0e0e0; }
+        .nav-btn:disabled { color: #ccc; cursor: default; background: #f9f9f9; }
+
         h3 { text-align: center; color: #2c3e50; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 18px; }
         .section-title { font-size: 11px; color: #27ae60; font-weight: bold; margin: 12px 0 6px 0; display: flex; align-items: center; }
         .section-title::before { content: "●"; margin-right: 5px; font-size: 7px; }
         label { font-size: 10px; font-weight: bold; color: #444; display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; width: 100%; }
+        
+        .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; color: #000; font-weight: 500; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; }
+        
+        input[type="text"], input[type="number"] { -webkit-appearance: none; }
+        select { font-weight: 700; color: #000; -webkit-appearance: none; }
         .search-input { border: 2px solid #2c3e50; background: #f9f9f9; font-weight: bold; }
         .dropdown-container { position: relative; }
-        .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #2c3e50; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #2c3e50; border-top: none; border-radius: 0 0 5px 5px; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .custom-list div { padding: 10px; font-size: 13px; border-bottom: 1px solid #eee; cursor: pointer; color: #333; }
+        .custom-list div.highlight-country { background-color: #eafaf1; font-weight: bold; }
+        
         .row { display: flex; gap: 6px; margin-bottom: 8px; align-items: flex-end; }
         .row div { flex: 1; min-width: 0; }
-        .result { margin-top: 15px; padding: 12px; border-radius: 10px; display: none; border: 1px solid #ccc; }
+        .result { margin-top: 15px; padding: 12px; border-radius: 10px; display: none; transition: all 0.3s; border: 1px solid #ccc; }
         .mode-margin { background-color: #f0f7ff !important; border: 2px solid #3498db !important; }
         .mode-price { background-color: #fffdf0 !important; border: 2px solid #f1c40f !important; }
-        .price-tag { font-size: 22px; font-weight: bold; color: #000; text-align: center; display: block; margin: 5px 0; }
+        .price-tag { font-size: 22px; font-weight: bold; color: #000; text-align: center; display: block; margin: 5px 0; word-break: break-all; }
+        .footer-note { margin-top: 15px; font-size: 10px; color: #777; line-height: 1.5; border-top: 1px solid #eee; padding-top: 12px; }
+        #fixedPriceInfo, #bepInfo { display: flex; flex-direction: column; align-items: flex-end; font-weight: bold; text-align: right; line-height: 1.3; }
+        #fixedPriceInfo { font-size: 13px; margin-bottom: 5px; }
+        #bepInfo { font-size: 13px; color: #e65100; }
+        .price-sub { font-size: 13px; white-space: nowrap; }
+        #resMarginInfo { text-align: center; font-size: 15px; font-weight: bold; margin-bottom: 8px; }
         #loaded-container { position: absolute; top: -10px; right: 5px; display: none; align-items: flex-start; background: #454d55; color: #f8f9fa; padding: 4px 10px; border-radius: 6px; z-index: 100; max-width: 170px; border: 1px solid #343a40; }
+        #loaded-text { font-size: 11px; font-weight: 500; margin-right: 8px; word-break: break-all; white-space: normal; line-height: 1.1; }
+        #close-loaded { cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; flex-shrink: 0; color: #adb5bd; margin-top: -2px; }
+        
+        #liveDetail { margin-top: 10px; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 8px; font-size: 13px; color: #444; line-height: 1.6; display: none; }
+
         .save-box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #27ae60; box-sizing: border-box; }
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
-        #preview-container { width: 100%; min-height: 100px; border: 1px dashed #ccc; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border-radius: 5px; background: #fafafa; box-sizing: border-box; }
-        .thumb-box { position: relative; width: 60px; height: 60px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+        
+        #preview-container { width: 100%; min-height: 100px; border: 1px dashed #ccc; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border-radius: 5px; background: #fafafa; box-sizing: border-box; align-items: flex-start; }
+        .thumb-box { position: relative; width: 60px; height: 60px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #eee; }
         .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
-        .thumb-del { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,0.6); color: white; width: 18px; height: 18px; font-size: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; position: relative; min-height: 72px; }
-        .library-item img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; margin-right: 10px; }
-        .lib-checkbox { width: 22px; height: 22px; margin-right: 10px; display: none; }
+        .thumb-del { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,0.6); color: white; width: 18px; height: 18px; font-size: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; }
+
+        .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; box-sizing: border-box; position: relative; min-height: 72px; transition: background 0.2s; }
+        .library-item.editing { border-color: #3498db; background: #f0f7ff !important; }
+        .library-item img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; margin-right: 10px; flex-shrink: 0; }
+        .library-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .library-title-row { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+        .library-title { font-size: 13px; font-weight: bold; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .edit-icon { font-size: 14px; color: #999; cursor: pointer; padding: 5px; }
+        .library-date { font-size: 10px; color: #999; }
+        
+        .lib-checkbox { width: 22px; height: 22px; margin-right: 10px; display: none; cursor: pointer; z-index: 5; }
+        .lib-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .lib-edit-btn { font-size: 11px; padding: 6px 12px; background: #f0f2f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        .batch-del-top-btn { font-size: 11px; padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: none; margin-right: 5px; }
+
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
-        #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; position: relative; }
-        #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s; }
-        #modal-top-bar { position:absolute; top:20px; left:0; width:100%; display:flex; justify-content:center; color:white; font-weight:bold; z-index:10002; }
+        #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
+        #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s ease-out; cursor: zoom-in; }
+        #modal-top-bar { position:absolute; top:20px; left:0; width:100%; display:flex; justify-content:center; align-items:center; padding:0 20px; box-sizing:border-box; z-index:10002; }
+        #modal-counter { color:white; font-size:14px; font-weight:bold; }
         .modal-bottom-btns { position: absolute; right: 20px; bottom: 40px; display: flex; flex-direction: column; gap: 12px; z-index: 10005; }
-        #photo-edit-btn, #direct-del-btn { color:white; padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; border:none; backdrop-filter: blur(5px); }
-        #photo-edit-btn { background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.5); }
-        #direct-del-btn { background:rgba(231,76,60,0.85); font-weight:bold; }
-        #photo-edit-view { display:none; width:95%; height:85%; overflow-y:auto; background:white; border-radius:12px; padding:20px; box-sizing:border-box; z-index:10003; }
+        #photo-edit-btn { background:rgba(255,255,255,0.25); color:white; border:1px solid rgba(255,255,255,0.5); padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; backdrop-filter: blur(5px); }
+        #direct-del-btn { background:rgba(231,76,60,0.85); color:white; border:none; padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; font-weight:bold; }
+        #photo-edit-view { display:none; width:90%; height:85%; overflow-y:auto; background:white; border-radius:12px; padding:20px; box-sizing:border-box; z-index:10003; }
         .edit-thumb-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; padding-bottom: 80px; }
         .edit-thumb-box { position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:2px solid #eee; }
         .edit-thumb-box img { width:100%; height:100%; object-fit:cover; }
         .photo-cb { position:absolute; top:5px; right:5px; width:22px; height:22px; z-index:2; }
-        #edit-actions { display:none; position:fixed; bottom:0; left:0; width:100%; justify-content:center; gap:10px; z-index:10004; background: white; padding: 15px 20px; border-top: 1px solid #eee; box-sizing: border-box; }
-        .action-btn { flex: 1; padding:12px 0; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; text-align: center; }
+        #edit-actions { display:none; position:fixed; bottom:15%; width:85%; justify-content:center; gap:10px; z-index:10004; background: white; padding: 15px 0; border-top: 1px solid #eee; }
+        .action-btn { flex: 1; padding:12px 0; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
         .unit-selector { display: flex; gap: 8px; align-items: center; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #eee; margin-left: 10px; }
+        .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
+        .unit-label { font-size: 9px; font-weight: bold; color: #555; cursor: pointer; margin-left: -4px; }
     </style>
 </head>
 <body>
@@ -75,7 +115,7 @@
     </div>
 </div>
 
-<div id="img-modal" onclick="handleModalBack()">
+<div id="img-modal" onclick="closeModal()">
     <div id="modal-top-bar"><span id="modal-counter"></span></div>
     <div id="modal-img-container"><img id="modal-img" src="" onclick="toggleZoom(event)"></div>
     <div class="modal-bottom-btns" id="modal-controls" onclick="event.stopPropagation()">
@@ -124,19 +164,19 @@
                 <label><span>희망 판매가</span><div class="unit-selector"><input type="radio" id="unitKrw" name="priceUnit" value="krw" checked onclick="convertUnitPrice('krw')"><label for="unitKrw" class="unit-label">원</label><input type="radio" id="unitUsd" name="priceUnit" value="usd" onclick="convertUnitPrice('usd')"><label for="unitUsd" class="unit-label">달러</label></div></label>
                 <input type="number" id="fixedPrice" onfocus="clearField(this, 'price')" oninput="updatePriceInput(this.value); onInputChange();">
             </div>
-            <div style="flex: 1.1; display: flex; flex-direction: column; justify-content: flex-end;"><div id="fixedPriceInfo" style="font-size:13px; font-weight:bold; text-align:right;"></div><div id="bepInfo" style="font-size:13px; color:#e65100; text-align:right;"></div></div>
+            <div style="flex: 1.1; display: flex; flex-direction: column; justify-content: flex-end;"><div id="fixedPriceInfo"></div><div id="bepInfo"></div></div>
         </div>
         <div class="section-title">상품 규격 및 배송</div>
         <div class="row">
             <div style="flex: 1.2;"><label>배송 타입</label><select id="shipType" onchange="onInputChange()"><option value="6000">일반 (/6000)</option><option value="5000">특송 (/5000)</option></select></div>
-            <div><label><span>무게(kg) <span id="boxGuide" style="font-size:10px; color:#3498db; font-weight:bold;"></span></span><span id="dot_w" class="req-dot">.</span></label><input type="number" id="w" step="0.01" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label><span>무게(kg) <span id="boxGuide" class="size-guide"></span></span><span id="dot_w" class="req-dot">.</span></label><input type="number" id="w" step="0.01" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
         <div class="row">
             <div><label>가로(cm)</label><input type="number" id="x" onfocus="clearField(this)" oninput="onInputChange()"></div>
             <div><label>세로(cm)</label><input type="number" id="y" onfocus="clearField(this)" oninput="onInputChange()"></div>
             <div><label>높이(cm)</label><input type="number" id="z" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
-        <div id="liveDetail" style="margin-top: 10px; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 8px; font-size: 13px; color: #444; line-height: 1.6; display: none;"></div>
+        <div id="liveDetail"></div>
         <div class="section-title">기타 부수 비용</div>
         <div class="row">
             <div><label><span>국내 배송비</span><span id="dot_local" class="req-dot">.</span></label><input type="number" id="local" value="3000" onfocus="clearField(this)" oninput="onInputChange()"></div>
@@ -149,7 +189,7 @@
         <div id="resultArea" class="result">
             <label id="resTitle" style="color:#2c3e50; display:block; text-align:center; font-size:11px; font-weight:bold;">이베이 판매가</label>
             <span id="resPrice" class="price-tag">$0.00</span>
-            <div id="resMarginInfo" style="text-align: center; font-size: 15px; font-weight: bold; margin-bottom: 8px;"></div>
+            <div id="resMarginInfo"></div>
         </div>
     </div>
 </div>
@@ -168,11 +208,11 @@
         <button id="batch-save-btn" style="width:100%; margin-top:8px; padding:14px; background:#3498db; color:white; border:none; border-radius:5px; font-weight:800; display:none;" onclick="saveToLibrary()">💾 이 구성으로 저장하기</button>
         <input type="file" id="photoGallery" accept="image/*" multiple style="display:none;" onchange="handleImg(this)">
         <hr style="margin:20px 0 10px 0; border:0; border-top:1px solid #eee;">
-        <div class="lib-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div class="lib-header">
             <span style="font-size: 12px; font-weight: bold; color: #27ae60;">저장 목록</span>
             <div style="display: flex;">
-                <button id="lib-batch-del" style="font-size: 11px; padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: none; margin-right: 5px;" onclick="deleteSelectedItems()">선택 삭제</button>
-                <button id="lib-edit-toggle" style="font-size: 11px; padding: 6px 12px; background: #f0f2f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="toggleLibEdit()">편집</button>
+                <button id="lib-batch-del" class="batch-del-top-btn" onclick="deleteSelectedItems()">선택 삭제</button>
+                <button id="lib-edit-toggle" class="lib-edit-btn" onclick="toggleLibEdit()">편집</button>
             </div>
         </div>
         <div id="library-list"></div>
@@ -180,30 +220,44 @@
 </div>
 
 <script>
-    /* [의장님 지시: 로직 유지 및 삭제 즉시 반영 보완] */
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
-    const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
+    const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
-    let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin';
+    let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null;
     let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
     let calcHistory = []; let historyIndex = -1;
 
+    function updateAddressTitle() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`);
+                const data = await response.json();
+                if (data && data.address) {
+                    const addr = data.address;
+                    const road = addr.road || addr.pedestrian || "";
+                    const bNum = addr.house_number || "";
+                    const suburb = addr.suburb || addr.neighbourhood || "";
+                    let finalAddr = `${road} ${bNum} ${suburb}`.trim();
+                    const titleInput = document.getElementById('saveTitle');
+                    if(finalAddr && (titleInput.value === "" || titleInput.dataset.auto === "true")) {
+                        titleInput.value = finalAddr;
+                        titleInput.dataset.auto = "true";
+                    }
+                }
+            } catch (e) { console.log("주소 변환 실패"); }
+        }, null, { enableHighAccuracy: true });
+    }
+
     window.addEventListener('popstate', function(event) {
         const modal = document.getElementById('img-modal');
-        const editView = document.getElementById('photo-edit-view');
-        const camera = document.getElementById('camera-overlay');
-        if (camera.style.display === 'flex') stopCamera();
-        else if (editView.style.display === 'block') togglePhotoEdit(event);
-        else if (modal.style.display === 'flex') { document.getElementById('img-modal').style.display = 'none'; }
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+            history.pushState(null, null, window.location.pathname);
+        }
     });
-
-    function handleModalBack() {
-        const editView = document.getElementById('photo-edit-view');
-        if (editView.style.display === 'block') return;
-        document.getElementById('img-modal').style.display = 'none';
-        if (window.history.state === 'modal') history.back();
-    }
 
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
@@ -219,161 +273,154 @@
         }
     }, {passive: true});
 
-    /* [의장님 지시: 핵심 수정 - 삭제 즉시 화면에서 제거] */
-    function deleteCurrentPhoto(e) { 
-        e.stopPropagation(); 
-        if (confirm("현재 사진을 삭제하시겠습니까?")) { 
-            modalImgList.splice(modalImgIdx, 1); 
-            const isEmpty = (modalImgList.length === 0);
-            updateLibPhotos(isEmpty); 
-            if (isEmpty) { handleModalBack(); } 
-            else { 
-                modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); 
-                showModalImg(); 
-                renderEditThumbs(); // 화면 강제 갱신
-            } 
-        } 
-    }
-    
-    function deleteSelectedPhotos(e) { 
-        e.stopPropagation(); 
-        const cbs = document.querySelectorAll('.photo-cb:checked'); 
-        if (cbs.length === 0) return; 
-        if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { 
-            const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); 
-            indices.forEach(idx => modalImgList.splice(idx, 1)); 
-            const isEmpty = (modalImgList.length === 0);
-            updateLibPhotos(isEmpty); 
-            if (isEmpty) { togglePhotoEdit(null); handleModalBack(); } 
-            else { 
-                modalImgIdx = 0; 
-                showModalImg(); 
-                renderEditThumbs(); // 즉각적인 화면 그리드 리프레시
-            } 
-        } 
-    }
+    function deleteCurrentPhoto(e) { e.stopPropagation(); if (confirm("현재 사진을 삭제하시겠습니까?")) { modalImgList.splice(modalImgIdx, 1); if (modalImgList.length === 0) closeModal(); else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); } updateLibPhotos(); } }
+    function togglePhotoEdit(e) { e.stopPropagation(); const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; } }
+    function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
+    function deleteSelectedPhotos(e) { e.stopPropagation(); const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotos(); togglePhotoEdit(e); if (modalImgList.length === 0) closeModal(); else { modalImgIdx = 0; showModalImg(); } } }
+    function updateLibPhotos() { if (!currentLoadedId) return; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === currentLoadedId); if (item) { item.imgList = [...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
 
-    function updateLibPhotos(deleteItemFlag = false) { 
-        if (!currentLoadedId) return; 
-        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
-        let itemIndex = lib.findIndex(i => i.id === currentLoadedId); 
-        if (itemIndex !== -1) { 
-            if (deleteItemFlag) { 
-                lib.splice(itemIndex, 1); 
-                unloadItem(); 
-            } else { 
-                lib[itemIndex].imgList = [...modalImgList]; 
-            }
-            localStorage.setItem('nanaLibrary', JSON.stringify(lib)); 
-            renderLibrary(); // 메인 목록도 즉각 동기화
-        } 
-    }
-
-    function togglePhotoEdit(e) { 
-        if(e) e.stopPropagation(); 
-        const view = document.getElementById('photo-edit-view'); 
-        const imgContainer = document.getElementById('modal-img-container'); 
-        const topBar = document.getElementById('modal-top-bar'); 
-        const mainBtns = document.getElementById('modal-controls'); 
-        const actions = document.getElementById('edit-actions'); 
-        const isOpening = view.style.display !== 'block'; 
-        if (isOpening) { 
-            history.pushState('edit', null, null);
-            view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; 
-            renderEditThumbs(); 
-        } else { 
-            if (window.history.state === 'edit') history.back();
-            view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; 
-        } 
-    }
-
-    function renderEditThumbs() { 
-        const grid = document.getElementById('edit-thumb-grid'); 
-        grid.innerHTML = ""; 
-        if (modalImgList.length === 0) return;
-        modalImgList.forEach((src, idx) => { 
-            const box = document.createElement('div'); 
-            box.className = 'edit-thumb-box'; 
-            box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; 
-            box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; 
-            grid.appendChild(box); 
-        }); 
-    }
-    
     async function shareSelectedPhotos(e) {
         e.stopPropagation();
         const cbs = document.querySelectorAll('.photo-cb:checked');
-        if (cbs.length === 0) return;
-        if (!navigator.share) return;
+        if (cbs.length === 0) { alert("공유할 사진을 선택해주세요."); return; }
+        if (!navigator.share) { alert("현재 브라우저는 공유 기능을 지원하지 않습니다."); return; }
         try {
             const filesArray = [];
-            for (let cb of cbs) {
-                const dataUrl = modalImgList[parseInt(cb.value)];
+            const selectedIndices = Array.from(cbs).map(cb => parseInt(cb.value));
+            for (let idx of selectedIndices) {
+                const dataUrl = modalImgList[idx];
                 const response = await fetch(dataUrl);
                 const blob = await response.blob();
-                filesArray.push(new File([blob], `nana_${Date.now()}.jpg`, { type: 'image/jpeg' }));
+                const file = new File([blob], `nana_product_${idx}.jpg`, { type: 'image/jpeg' });
+                filesArray.push(file);
             }
-            await navigator.share({ title: '나나 상품 정보', files: filesArray });
-        } catch (err) {}
+            const shareData = { title: '나나 통합 계산기 상품 정보', text: `상품 정보 공유드립니다.`, files: filesArray };
+            if (navigator.canShare && navigator.canShare(shareData)) await navigator.share(shareData);
+            else alert("이 브라우저에서는 파일 공유를 지원하지 않습니다.");
+        } catch (err) { console.error("공유 실패:", err); }
     }
 
-    /* 나머지 계산기 로직 및 유틸리티 유지 */
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() { const data = saveInputs(); if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) { calcHistory = calcHistory.slice(0, historyIndex + 1); calcHistory.push(JSON.parse(JSON.stringify(data))); if (calcHistory.length > 30) calcHistory.shift(); historyIndex = calcHistory.length - 1; } doCalc(); }
-    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = ""; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item'; div.onclick = () => { if(isLibEditing) { const cb = div.querySelector('.lib-checkbox'); cb.checked = !cb.checked; } else loadItem(item.id); }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; div.innerHTML = `<input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()"><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div><div style="flex:1; min-width:0;"><div style="font-size:13px; font-weight:bold; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.title}</div><div style="font-size:10px; color:#999;">${item.date}</div></div>`; listContainer.appendChild(div); }); }
+    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = ""; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item' + (isLibEditing ? ' editing' : ''); div.onclick = () => { if(isLibEditing) { const cb = div.querySelector('.lib-checkbox'); cb.checked = !cb.checked; } else loadItem(item.id); }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; div.innerHTML = `<input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()"><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div><div class="library-info"><div class="library-title-row"><div class="library-title">${item.title}</div><span class="edit-icon" onclick="editItemTitle(event, ${item.id})">✏️</span></div><div class="library-date">${item.date}</div></div>`; listContainer.appendChild(div); }); }
     function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
     function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
+
+    /* [의장님 수정 지시 사항: 무게 비교 녹색 강조 로직 복구] */
     function doCalc() { 
-        const mIn = document.getElementById('margin'); const pIn = document.getElementById('fixedPrice'); const exIn = document.getElementById('ex'); const cIn = document.getElementById('countryInput'); const rA = document.getElementById('resultArea'); const fI = document.getElementById('fixedPriceInfo'); const bI = document.getElementById('bepInfo'); const lD = document.getElementById('liveDetail'); 
-        let sCode = ""; for (let key in NATION_MAP) { if (cIn.value.includes(key)) { sCode = NATION_MAP[key]; break; } } 
-        document.getElementById('dot_countryInput').style.visibility = !sCode ? "visible" : "hidden"; 
-        const ex = parseFloat(exIn.value); const isExE = (!ex || ex <= 0); document.getElementById('dot_ex').style.visibility = isExE ? "visible" : "hidden"; 
-        ['cost', 'w', 'local', 'pack', 'buffer'].forEach(id => { const el = document.getElementById(id); const dot = document.getElementById('dot_' + id); const val = el.value.trim(); dot.style.visibility = (id === 'w') ? (!val || parseFloat(val) < 1) : (!val) ? "visible" : "hidden"; }); 
-        if (!sCode || isExE) { rA.style.display = 'none'; lD.style.display = 'none'; return; } 
-        const div = parseFloat(document.getElementById('shipType').value); const cost = parseFloat(document.getElementById('cost').value)||0; const local = parseFloat(document.getElementById('local').value)||0; const pack = parseFloat(document.getElementById('pack').value)||0; const buff = parseFloat(document.getElementById('buffer').value)||0; const duty = parseFloat(document.getElementById('duty').value)||0; const w = parseFloat(document.getElementById('w').value)||0; const x = parseFloat(document.getElementById('x').value)||0; const y = parseFloat(document.getElementById('y').value)||0; const z = parseFloat(document.getElementById('z').value)||0; 
-        const vW = Math.round((x*y*z/div)*100)/100; const fW = Math.max(w, vW); const d = RATES[sCode]; 
-        let sK = (fW <= 2.0) ? (d.base[Math.ceil(Math.round(fW*10)/10/d.step)-1] || d.base[0]) : (d.base[d.base.length-1] + (Math.ceil((Math.round(fW*10)/10 - 2.0)/0.5) * d.overFee)); 
-        const bR = (100-buff)/100; const eS = cost+local+pack+duty+sK; const bep = (eS/bR); 
-        lD.innerHTML = `<span>• 실중량: <b>${w.toFixed(2)}kg</b> / 부피무게: <b>${vW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${sK.toLocaleString()}원</b> / 지출합계: <b>${Math.round(eS).toLocaleString()}원</b></span>`; lD.style.display = 'block'; 
-        const mVal = parseFloat(mIn.value)||0; const fP = (lastField === 'price' && preciseKrwValue > 0) ? preciseKrwValue : (eS+mVal)/bR; 
-        let aM = (lastField === 'price' && preciseKrwValue > 0) ? (preciseKrwValue*bR)-eS : mVal; 
-        const color = (aM < 0) ? "#d32f2f" : "#2e7d32"; 
-        document.getElementById('resMarginInfo').style.color = color; document.getElementById('resMarginInfo').innerText = `${aM < 0 ? '손해' : '예상 마진'}: $${(aM/ex).toFixed(2)} (${Math.round(aM).toLocaleString()}원)`; 
-        fI.style.color = color; fI.innerHTML = lastField === 'price' ? `<span>${aM<0?'손해':'마진'}: $${(aM/ex).toFixed(2)}</span>` : `<span>예상가: $${(fP/ex).toFixed(2)}</span>`; 
-        bI.innerHTML = `<span>분기점: $${(bep/ex).toFixed(2)}</span>`; 
-        document.getElementById('resPrice').innerText = "$" + (fP/ex).toFixed(2) + " (" + Math.round(fP).toLocaleString() + "원)"; 
-        rA.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); rA.style.display = 'block'; 
-        const side = Math.pow(w*div, 1/3); document.getElementById('boxGuide').innerText = w > 0 ? `[크기: ${Math.floor(side*3)}cm]` : "";
+        updateBoxGuide(); 
+        const marginInput = document.getElementById('margin'); 
+        const priceInput = document.getElementById('fixedPrice'); 
+        const exInput = document.getElementById('ex'); 
+        const countryInput = document.getElementById('countryInput'); 
+        const packInput = document.getElementById('pack'); 
+        const resultArea = document.getElementById('resultArea'); 
+        const fInfo = document.getElementById('fixedPriceInfo'); 
+        const bInfo = document.getElementById('bepInfo'); 
+        const liveDetail = document.getElementById('liveDetail'); 
+        
+        let selectedCode = ""; 
+        for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } } 
+        document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden"; 
+        
+        const exValRaw = exInput.value.trim(); 
+        const ex = parseFloat(exValRaw); 
+        const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0); 
+        document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden"; 
+        document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden"; 
+        
+        ['cost', 'w', 'local', 'buffer'].forEach(id => { 
+            const input = document.getElementById(id); 
+            const dot = document.getElementById('dot_' + id); 
+            const val = input.value.trim(); 
+            // 무게가 '1' 미만일 경우 빨간 점이 없어지지 않는 규칙 준수
+            let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) < 1) : (val === ""); 
+            dot.style.visibility = isInvalid ? "visible" : "hidden"; 
+        }); 
+
+        const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== ""); 
+        document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden"; 
+        
+        if (!selectedCode || isExEmpty) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; } 
+        
+        const div = parseFloat(document.getElementById('shipType').value) || 6000; 
+        const cost = parseFloat(document.getElementById('cost').value) || 0; 
+        const local = parseFloat(document.getElementById('local').value) || 0; 
+        const pack = parseFloat(packInput.value) || 0; 
+        const buffer = parseFloat(document.getElementById('buffer').value) || 0; 
+        const duty = parseFloat(document.getElementById('duty').value) || 0; 
+        const w = parseFloat(document.getElementById('w').value) || 0; 
+        const x = parseFloat(document.getElementById('x').value) || 0; 
+        const y = parseFloat(document.getElementById('y').value) || 0; 
+        const z = parseFloat(document.getElementById('z').value) || 0; 
+        
+        const volW = Math.round((x * y * z / div) * 100) / 100; 
+        const finalW = Math.max(w, volW); 
+        const data = RATES[selectedCode]; 
+        if(!data) return; 
+
+        let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee)); 
+        const bufferRate = (100 - buffer) / 100; 
+        const expenseSum = cost + local + pack + duty + shipKrw; 
+        const bepKrw = (expenseSum / bufferRate); 
+
+        // [무게 강조 로직 복구 지점]
+        const wColor = (w >= volW && w > 0) ? "color:#27ae60; font-weight:bold;" : "";
+        const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
+
+        liveDetail.innerHTML = `<span>• 실중량: <b style="${wColor}">${w.toFixed(2)}kg</b> / 부피무게: <b style="${volColor}">${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`; 
+        liveDetail.style.display = 'block'; 
+
+        if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; } 
+        const marginVal = parseFloat(marginInput.value) || 0; 
+        const fixedPriceVal = preciseKrwValue; 
+        let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate; 
+        let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal; 
+        
+        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; 
+        const marginText = (actualMargin < 0) ? "손해" : "예상 마진"; 
+        document.getElementById('resMarginInfo').style.color = marginColor; 
+        document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`; 
+        fInfo.style.color = marginColor; 
+        fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`; 
+        bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`; 
+        document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)"; 
+        marginInput.classList.toggle('mode-margin', lastField === 'margin'); 
+        priceInput.classList.toggle('mode-price', lastField === 'price'); 
+        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); 
+        resultArea.style.display = 'block'; 
     }
 
-    function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; updateAddressTitle(); renderLibrary(); } else { loadInputs(); doCalc(); } }
-    async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { history.pushState('camera', null, null); videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = videoStream; overlay.style.display = 'flex'; } catch (err) { alert("카메라 권한 필요"); } }
-    function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; if(window.history.state === 'camera') history.back(); renderPreviews(); }
+    function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; document.getElementById('lib-batch-del').style.display = 'none'; document.getElementById('lib-edit-toggle').innerText = '편집'; updateAddressTitle(); renderLibrary(); } else { loadInputs(); doCalc(); } }
+    async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; } catch (err) { alert("카메라 권한 필요"); } }
+    function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; renderPreviews(); }
     function takePhoto() { const video = document.getElementById('camera-video'); const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); currentImgStack.push(canvas.toDataURL('image/jpeg', 0.7)); document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; }
     function updatePriceInput(val) { lastField = 'price'; const ex = parseFloat(document.getElementById('ex').value) || 1; const isUsd = document.getElementById('unitUsd').checked; const numVal = parseFloat(val) || 0; preciseKrwValue = isUsd ? numVal * ex : numVal; }
     function convertUnitPrice(newUnit) { if (prevUnit === newUnit) return; const priceInput = document.getElementById('fixedPrice'); const ex = parseFloat(document.getElementById('ex').value) || 1; if (preciseKrwValue > 0) { if (newUnit === 'usd') priceInput.value = (preciseKrwValue / ex).toFixed(2); else priceInput.value = Math.round(preciseKrwValue); lastField = 'price'; } prevUnit = newUnit; onInputChange(); }
-    function applyState(state) { if(!state) return; Object.keys(state).forEach(k => { const el = document.getElementById(k); if(el) { if(el.type === 'radio') { if(el.value === state[k]) { el.checked = true; if(k === 'priceUnit') prevUnit = state[k]; } } else el.value = state[k]; } }); const ex = parseFloat(state['ex']) || 1; preciseKrwValue = (state['priceUnit'] === 'usd') ? (parseFloat(state['fixedPrice']) || 0) * ex : (parseFloat(state['fixedPrice']) || 0); lastField = state['lastField'] || 'margin'; doCalc(); }
-    function saveInputs() { const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'buffer', 'duty']; const data = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; }); data['priceUnit'] = document.querySelector('input[name="priceUnit"]:checked').value; data['lastField'] = lastField; data['currentLoadedId'] = currentLoadedId; localStorage.setItem('nanaCalcData', JSON.stringify(data)); return data; }
-    function loadInputs() { const saved = localStorage.getItem('nanaCalcData'); if (saved) applyState(JSON.parse(saved)); }
-    function updateClock() { const now = new Date(); const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
+    function applyState(state) { if(!state) return; Object.keys(state).forEach(k => { const el = document.getElementById(k); if(el) { if(el.type === 'radio') { if(el.value === state[k]) { el.checked = true; if(k === 'priceUnit') prevUnit = state[k]; } } else el.value = state[k]; } if(k === 'lastField') lastField = state[k]; }); const ex = parseFloat(state['ex']) || 1; const isUsd = state['priceUnit'] === 'usd'; const fp = parseFloat(state['fixedPrice']) || 0; preciseKrwValue = isUsd ? fp * ex : fp; localStorage.setItem('nanaCalcData', JSON.stringify(state)); doCalc(); }
+    function saveInputs() { const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'buffer', 'duty']; const data = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; }); const unitEl = document.querySelector('input[name="priceUnit"]:checked'); data['priceUnit'] = unitEl ? unitEl.value : 'krw'; data['lastField'] = lastField; data['currentLoadedId'] = currentLoadedId; localStorage.setItem('nanaCalcData', JSON.stringify(data)); return data; }
+    function loadInputs() { const saved = localStorage.getItem('nanaCalcData'); if (saved) { const data = JSON.parse(saved); applyState(data); if (data.currentLoadedId) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === data.currentLoadedId); if(item) { document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; currentLoadedId = data.currentLoadedId; } } } }
+    function updateClock() { const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토']; const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
     setInterval(updateClock, 1000);
     function clearField(el, type) { el.value = ''; if (type) lastField = type; if (type === 'price') preciseKrwValue = 0; if (el.id === 'countryInput') showList(); onInputChange(); }
-    function showList() { const listEl = document.getElementById('customList'); listEl.innerHTML = ''; Object.keys(NATION_MAP).forEach(name => { const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; if (HIGHLIGHTS.includes(name)) div.style.backgroundColor = '#eafaf1'; div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; listEl.appendChild(div); }); listEl.style.display = 'block'; }
+    function showList() { const listEl = document.getElementById('customList'); listEl.innerHTML = ''; Object.keys(NATION_MAP).forEach(name => { const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country'); div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; listEl.appendChild(div); }); listEl.style.display = 'block'; }
     function filterList() { const val = document.getElementById('countryInput').value.toLowerCase(); const items = document.getElementById('customList').querySelectorAll('div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; }); }
     function renderPreviews() { const container = document.getElementById('preview-container'); const saveBtn = document.getElementById('batch-save-btn'); if (currentImgStack.length === 0) { container.innerHTML = "준비된 사진이 없습니다"; saveBtn.style.display = "none"; return; } container.innerHTML = ""; currentImgStack.forEach((img, idx) => { const box = document.createElement('div'); box.className = 'thumb-box'; box.innerHTML = `<img src="${img}"><div class="thumb-del" onclick="removeThumb(${idx})">×</div>`; container.appendChild(box); }); saveBtn.style.display = "block"; }
     function removeThumb(idx) { currentImgStack.splice(idx, 1); renderPreviews(); }
-    function saveToLibrary() { const titleInput = document.getElementById('saveTitle'); const title = titleInput.value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, imgList: [...currentImgStack], data: saveInputs() }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack = []; titleInput.value = ""; renderPreviews(); renderLibrary(); }
-    function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { currentLoadedId = id; applyState(item.data); document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; switchTab('calc'); } }
-    function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; onInputChange(); }
-    function openModalWithList(e, list, itemId) { e.stopPropagation(); if(!list || list.length === 0) return; history.pushState('modal', null, null); modalImgList = list; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; }
-    function showModalImg() { document.getElementById('modal-img').src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
+    function saveToLibrary() { const titleInput = document.getElementById('saveTitle'); const title = titleInput.value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, imgList: [...currentImgStack], data: saveInputs(), lastField: lastField }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack = []; titleInput.value = ""; delete titleInput.dataset.auto; updateAddressTitle(); renderPreviews(); renderLibrary(); }
+    function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { if (!currentLoadedId) lastBackup = saveInputs(); currentLoadedId = id; applyState(item.data); document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; onInputChange(); switchTab('calc'); } }
+    function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) applyState(lastBackup); onInputChange(); }
+    function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const side = Math.pow(w * div, 1/3); guideEl.innerText = `[크기: ${Math.floor(side * 3)}cm]`; } else guideEl.innerText = ""; }
+    function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
+    function openModalWithList(e, list, itemId) { e.stopPropagation(); if(!list || list.length === 0) return; modalImgList = list; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState(null, null, window.location.pathname); }
+    function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
+    function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; }
     function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
-    function toggleZoom(e) { e.stopPropagation(); const img = e.target; img.style.transform = (img.style.transform === 'scale(2)') ? 'scale(1)' : 'scale(2)'; }
-    function updateAddressTitle() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`); const data = await response.json(); const addr = data.address; const titleInput = document.getElementById('saveTitle'); if(titleInput.value === "") titleInput.value = `${addr.road || ""} ${addr.house_number || ""} ${addr.suburb || ""}`.trim(); } catch (e) {} }); }
-    window.onload = () => { loadInputs(); updateClock(); doCalc(); updateAddressTitle(); };
+    function toggleZoom(e) { e.stopPropagation(); const img = e.target; img.style.transform = (img.style.transform === 'scale(2)') ? 'scale(1)' : 'scale(2)'; img.style.cursor = (img.style.transform === 'scale(2)') ? 'zoom-out' : 'zoom-in'; }
+    window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); };
 </script>
 </body>
 </html>
