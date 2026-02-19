@@ -59,7 +59,6 @@
         .save-box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #27ae60; box-sizing: border-box; }
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
         
-        /* [의장님 요청: 사진 다중 미리보기 스타일] */
         #preview-container { width: 100%; min-height: 100px; border: 1px dashed #ccc; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border-radius: 5px; background: #fafafa; box-sizing: border-box; align-items: flex-start; }
         .thumb-box { position: relative; width: 60px; height: 60px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #eee; }
         .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
@@ -78,16 +77,16 @@
         .unit-selector { display: flex; gap: 8px; align-items: center; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #eee; margin-left: 10px; }
         .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
         .unit-label { font-size: 9px; font-weight: bold; color: #555; cursor: pointer; margin-left: -4px; }
+        
+        /* [의장님 요청: 갤러리 힌트] */
+        .swipe-hint { position: absolute; bottom: 30px; color: rgba(255,255,255,0.6); font-size: 11px; }
     </style>
 </head>
 <body>
 
-<div id="img-modal" onclick="closeModal()" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column;">
-    <img id="modal-img" src="" style="max-width:95%; max-height:80%; border-radius:8px; object-fit: contain;">
-    <div id="modal-nav" style="display:flex; gap:20px; margin-top:15px;">
-        <button onclick="changeModalImg(-1); event.stopPropagation();" style="padding:10px 20px; background:white; border-radius:5px; border:none; font-weight:bold;">◀ 이전</button>
-        <button onclick="changeModalImg(1); event.stopPropagation();" style="padding:10px 20px; background:white; border-radius:5px; border:none; font-weight:bold;">다음 ▶</button>
-    </div>
+<div id="img-modal" onclick="closeModal()" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); align-items:center; justify-content:center; flex-direction:column; touch-action: none;">
+    <img id="modal-img" src="" style="max-width:95%; max-height:80%; border-radius:8px; object-fit: contain; transition: transform 0.2s ease-out;">
+    <div class="swipe-hint">← 좌우로 스와이프하여 넘기기 →</div>
 </div>
 
 <div class="nav-tabs">
@@ -180,7 +179,7 @@
         <button id="batch-save-btn" style="width:100%; margin-top:8px; padding:14px; background:#3498db; color:white; border:none; border-radius:5px; font-weight:800; cursor:pointer; display:none;" onclick="saveToLibrary()">💾 이 구성으로 저장하기</button>
         
         <input type="file" id="photoCamera" accept="image/*" capture="environment" style="display:none;" onchange="handleImg(this)">
-        <input type="file" id="photoGallery" accept="image/*" style="display:none;" onchange="handleImg(this)">
+        <input type="file" id="photoGallery" accept="image/*" multiple style="display:none;" onchange="handleImg(this)">
         <hr style="margin:20px 0 10px 0; border:0; border-top:1px solid #eee;">
         <div class="lib-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <span style="font-size: 12px; font-weight: bold; color: #27ae60;">저장 목록</span>
@@ -204,16 +203,40 @@
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     let modalImgIdx = 0; let modalImgList = [];
 
-    // [스와이프 로직 - 60px]
-    let touchStartX = 0; let touchEndX = 0; const swipeThreshold = 60; 
-    document.addEventListener('touchstart', e => { if (e.touches.length > 1) { touchStartX = 0; return; } touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', e => { if (touchStartX === 0) return; touchEndX = e.changedTouches[0].screenX; const currentZoom = (window.visualViewport) ? window.visualViewport.scale : 1; if (currentZoom <= 1.05) handleSwipe(); }, {passive: true});
+    // [스와이프 로직 - 탭 이동 및 갤러리 통합]
+    let touchStartX = 0; let touchEndX = 0; let touchStartY = 0; const swipeThreshold = 60; 
+    
+    document.addEventListener('touchstart', e => { 
+        touchStartX = e.changedTouches[0].screenX; 
+        touchStartY = e.changedTouches[0].screenY; 
+    }, {passive: true});
 
-    function handleSwipe() {
-        const diff = touchEndX - touchStartX;
-        const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
-        if (Math.abs(diff) > swipeThreshold) { if (diff < 0 && currentTab === 'calc') switchTab('lib'); else if (diff > 0 && currentTab === 'lib') switchTab('calc'); }
-    }
+    document.addEventListener('touchend', e => { 
+        if (touchStartX === 0) return; 
+        touchEndX = e.changedTouches[0].screenX; 
+        const touchEndY = e.changedTouches[0].screenY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+
+        // 모달(갤러리)이 열려있을 때 스와이프
+        if (document.getElementById('img-modal').style.display === "flex") {
+            if (Math.abs(diffX) > swipeThreshold && Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX < 0) changeModalImg(1); // 왼쪽으로 밀면 다음
+                else changeModalImg(-1); // 오른쪽으로 밀면 이전
+            }
+            return;
+        }
+
+        // 탭 전환 스와이프
+        const currentZoom = (window.visualViewport) ? window.visualViewport.scale : 1; 
+        if (currentZoom <= 1.05) {
+            const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
+            if (Math.abs(diffX) > swipeThreshold && Math.abs(diffX) > Math.abs(diffY)) { 
+                if (diffX < 0 && currentTab === 'calc') switchTab('lib'); 
+                else if (diffX > 0 && currentTab === 'lib') switchTab('calc'); 
+            } 
+        }
+    }, {passive: true});
 
     function updateLocationAddress() {
         if (!navigator.geolocation) return;
@@ -337,25 +360,28 @@
     document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown-container')) document.getElementById('customList').style.display = 'none'; });
     function updateLast(type) { lastField = type; onInputChange(); }
     
-    // [의장님 요청: 다중 촬영 및 저장 로직]
+    // [의장님 요청: 연속 촬영 최적화 - 즉시 저장 로직]
     function capturePhoto() { document.getElementById('photoCamera').click(); }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const width = 400; canvas.width = width; canvas.height = img.height * (width / img.width);
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const b64 = canvas.toDataURL('image/jpeg', 0.7);
-                    currentImgStack.push(b64);
-                    renderPreviews();
+        if (input.files) {
+            Array.from(input.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const width = 400; canvas.width = width; canvas.height = img.height * (width / img.width);
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const b64 = canvas.toDataURL('image/jpeg', 0.7);
+                        currentImgStack.push(b64); // 즉시 저장
+                        renderPreviews();
+                    };
+                    img.src = e.target.result;
                 };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(file);
+            });
+            input.value = ""; // 입력 초기화 (연속 촬영 가능하게)
         }
     }
     function renderPreviews() {
@@ -397,11 +423,25 @@
     function openModalWithList(e, list) {
         e.stopPropagation(); if(!list || list.length === 0) return;
         modalImgList = list; modalImgIdx = 0;
-        document.getElementById('modal-nav').style.display = list.length > 1 ? "flex" : "none";
         showModalImg(); document.getElementById('img-modal').style.display = "flex";
     }
-    function showModalImg() { document.getElementById('modal-img').src = modalImgList[modalImgIdx]; }
-    function changeModalImg(dir) { modalImgIdx += dir; if(modalImgIdx < 0) modalImgIdx = modalImgList.length - 1; if(modalImgIdx >= modalImgList.length) modalImgIdx = 0; showModalImg(); }
+    
+    // [의장님 요청: 갤러리 이미지 표시 로직 - 버튼 삭제 및 자연스러운 전환]
+    function showModalImg() { 
+        const mImg = document.getElementById('modal-img');
+        mImg.style.transform = "scale(0.95)"; mImg.style.opacity = "0.5";
+        setTimeout(() => {
+            mImg.src = modalImgList[modalImgIdx];
+            mImg.style.transform = "scale(1)"; mImg.style.opacity = "1";
+        }, 100);
+    }
+    
+    function changeModalImg(dir) { 
+        modalImgIdx += dir; 
+        if(modalImgIdx < 0) modalImgIdx = modalImgList.length - 1; 
+        if(modalImgIdx >= modalImgList.length) modalImgIdx = 0; 
+        showModalImg(); 
+    }
 
     function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { if (!currentLoadedId) lastBackup = saveInputs(); currentLoadedId = id; applyState(item.data); lastField = item.lastField || 'margin'; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; onInputChange(); switchTab('calc'); } }
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) { applyState(lastBackup); lastBackup = null; } onInputChange(); }
