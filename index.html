@@ -228,8 +228,6 @@
     let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null;
     let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
-    
-    /* [수정: 계산기 히스토리 관리용] */
     let calcHistory = []; let historyIndex = -1;
 
     window.addEventListener('popstate', function(event) {
@@ -253,22 +251,45 @@
         }
     }, {passive: true});
 
-    /* [수정: 누락된 모달 내 삭제/편집 기능 구현] */
+    /* [복구: SNS 공유 로직 - 기존 navigator.share 방식] */
+    async function shareSelectedPhotos(e) {
+        e.stopPropagation();
+        const cbs = document.querySelectorAll('.photo-cb:checked');
+        if (cbs.length === 0) { alert("공유할 사진을 선택해주세요."); return; }
+        
+        try {
+            const files = [];
+            for (let cb of cbs) {
+                const res = await fetch(modalImgList[parseInt(cb.value)]);
+                const blob = await res.blob();
+                files.push(new File([blob], `nana_photo_${Date.now()}.jpg`, { type: "image/jpeg" }));
+            }
+
+            if (navigator.share) {
+                await navigator.share({
+                    files: files,
+                    title: '나나 계산기 상품 사진',
+                    text: '저장된 상품 사진을 공유합니다.'
+                });
+            } else {
+                alert("이 브라우저는 공유 기능을 지원하지 않습니다.");
+            }
+        } catch (err) {
+            console.error("공유 실패:", err);
+        }
+    }
+
     function deleteCurrentPhoto(e) {
         e.stopPropagation();
         if (confirm("현재 사진을 삭제하시겠습니까?")) {
             modalImgList.splice(modalImgIdx, 1);
             if (modalImgList.length === 0) closeModal();
-            else {
-                modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1);
-                showModalImg();
-            }
-            // 원본 데이터(localStorage) 업데이트
+            else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); }
             updateLibPhotos();
         }
     }
     function togglePhotoEdit(e) {
-        e.stopPropagation();
+        if(e) e.stopPropagation();
         const view = document.getElementById('photo-edit-view');
         const actions = document.getElementById('edit-actions');
         const controls = document.getElementById('modal-controls');
@@ -294,26 +315,19 @@
         const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a);
         indices.forEach(idx => modalImgList.splice(idx, 1));
         updateLibPhotos();
-        togglePhotoEdit({stopPropagation:()=>{}});
+        togglePhotoEdit();
         if (modalImgList.length === 0) closeModal(); else { modalImgIdx = 0; showModalImg(); }
     }
     function updateLibPhotos() {
         if (!currentLoadedId) return;
         let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
         let item = lib.find(i => i.id === currentLoadedId);
-        if (item) {
-            item.imgList = [...modalImgList];
-            localStorage.setItem('nanaLibrary', JSON.stringify(lib));
-            renderLibrary();
-        }
+        if (item) { item.imgList = [...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); }
     }
-
-    /* [수정: 계산기 이력 버튼 기능 구현] */
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() {
         const data = saveInputs();
-        // 마지막 기록과 다를 때만 히스토리에 추가
         if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) {
             calcHistory = calcHistory.slice(0, historyIndex + 1);
             calcHistory.push(JSON.parse(JSON.stringify(data)));
@@ -322,7 +336,6 @@
         }
         doCalc();
     }
-
     function renderLibrary() { 
         const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
         const listContainer = document.getElementById('library-list'); 
@@ -342,14 +355,12 @@
             listContainer.appendChild(div); 
         }); 
     }
-
     function toggleLibEdit() {
         isLibEditing = !isLibEditing;
         document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집';
         document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none';
         renderLibrary();
     }
-
     function deleteSelectedItems() {
         const cbs = document.querySelectorAll('.lib-checkbox:checked');
         if (cbs.length === 0) return;
@@ -362,7 +373,6 @@
             toggleLibEdit();
         }
     }
-
     function doCalc() {
         updateBoxGuide(); const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice');
         const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput');
@@ -413,7 +423,6 @@
         marginInput.classList.toggle('mode-margin', lastField === 'margin'); priceInput.classList.toggle('mode-price', lastField === 'price');
         resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
     }
-
     function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; document.getElementById('lib-batch-del').style.display = 'none'; document.getElementById('lib-edit-toggle').innerText = '편집'; renderLibrary(); } else { loadInputs(); doCalc(); } }
     async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; } catch (err) { alert("카메라 권한 필요"); } }
     function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; renderPreviews(); }
@@ -435,23 +444,13 @@
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) applyState(lastBackup); onInputChange(); }
     function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const side = Math.pow(w * div, 1/3); guideEl.innerText = `[크기: ${Math.floor(side * 3)}cm]`; } else guideEl.innerText = ""; }
     function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
-    function openModalWithList(e, list, itemId) { 
-        e.stopPropagation(); 
-        if(!list || list.length === 0) return; 
-        modalImgList = list; 
-        modalImgIdx = 0; 
-        currentLoadedId = itemId; // 사진 삭제 시 원본 추적용
-        showModalImg(); 
-        document.getElementById('img-modal').style.display = "flex"; 
-        history.pushState(null, null, window.location.pathname);
-    }
+    function openModalWithList(e, list, itemId) { e.stopPropagation(); if(!list || list.length === 0) return; modalImgList = list; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState(null, null, window.location.pathname); }
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
     function closeModal() { document.getElementById('img-modal').style.display = "none"; }
     function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
     function toggleZoom(e) { e.stopPropagation(); const img = e.target; img.style.transform = (img.style.transform === 'scale(2)') ? 'scale(1)' : 'scale(2)'; img.style.cursor = (img.style.transform === 'scale(2)') ? 'zoom-out' : 'zoom-in'; }
-    function shareSelectedPhotos(e) { alert("SNS 공유 기능은 브라우저 보안 정책상 모바일 '공유하기' 기능을 통해 구현 가능합니다."); }
 
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); };
 </script>
