@@ -75,14 +75,16 @@
         .library-title { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; }
         .library-date { font-size: 10px; color: #999; }
 
-        /* [상세 보기 및 사진 편집 UI] */
+        /* [상세 보기 UI - 의장님 지시사항: 삭제 버튼 추가] */
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
         #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
         #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s ease-out; cursor: zoom-in; }
         
         #modal-top-bar { position:absolute; top:20px; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; padding:0 20px; box-sizing:border-box; z-index:10002; }
         #modal-counter { color:white; font-size:14px; font-weight:bold; }
+        .modal-top-btns { display: flex; gap: 8px; }
         #photo-edit-btn { background:rgba(255,255,255,0.2); color:white; border:1px solid white; padding:5px 12px; border-radius:20px; font-size:12px; cursor:pointer; }
+        #direct-del-btn { background:rgba(231,76,60,0.8); color:white; border:none; padding:5px 12px; border-radius:20px; font-size:12px; cursor:pointer; font-weight:bold; }
         
         #photo-edit-view { display:none; width:90%; max-height:70%; overflow-y:auto; background:white; border-radius:12px; padding:15px; box-sizing:border-box; z-index:10003; }
         .edit-thumb-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
@@ -112,7 +114,10 @@
 <div id="img-modal" onclick="closeModal()">
     <div id="modal-top-bar">
         <span id="modal-counter"></span>
-        <button id="photo-edit-btn" onclick="togglePhotoEdit(event)">사진 편집/공유</button>
+        <div class="modal-top-btns">
+            <button id="direct-del-btn" onclick="deleteCurrentPhoto(event)">삭제</button>
+            <button id="photo-edit-btn" onclick="togglePhotoEdit(event)">편집/공유</button>
+        </div>
     </div>
 
     <div id="modal-img-container">
@@ -239,7 +244,7 @@
     let modalImgIdx = 0; let modalImgList = []; let currentItemId = null;
     let videoStream = null; let imgScale = 1; let isPhotoEditMode = false;
 
-    /* [계산 로직: 보존] */
+    /* [계산 로직: 100% 보존] */
     function doCalc() {
         updateBoxGuide();
         const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice');
@@ -291,7 +296,7 @@
         resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
     }
 
-    /* [상세 보기 및 사진 관리 로직] */
+    /* [상세 보기 및 사진 관리 로직 - 의장님 지시: 즉시 삭제 기능 추가] */
     function openModalWithList(e, list, itemId) {
         e.stopPropagation(); if(!list || list.length === 0) return;
         modalImgList = list; modalImgIdx = 0; currentItemId = itemId; isPhotoEditMode = false;
@@ -299,12 +304,26 @@
         document.getElementById('photo-edit-view').style.display = 'none';
         document.getElementById('edit-actions').style.display = 'none';
         document.getElementById('modal-img-container').style.display = 'flex';
+        document.getElementById('direct-del-btn').style.display = 'block';
         document.getElementById('img-modal').style.display = "flex";
     }
     function showModalImg() { 
         const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx];
         mImg.style.transform = "scale(1)"; imgScale = 1;
         document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`;
+    }
+    function deleteCurrentPhoto(e) {
+        e.stopPropagation(); if (!confirm("현재 사진을 삭제할까요?")) return;
+        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
+        let itemIdx = lib.findIndex(i => i.id === currentItemId);
+        if (itemIdx > -1) {
+            lib[itemIdx].imgList.splice(modalImgIdx, 1);
+            localStorage.setItem('nanaLibrary', JSON.stringify(lib));
+            modalImgList = lib[itemIdx].imgList;
+            if (modalImgList.length === 0) closeModal();
+            else { modalImgIdx = Math.max(0, modalImgIdx - 1); showModalImg(); }
+            renderLibrary();
+        }
     }
     function togglePhotoEdit(e) {
         e.stopPropagation(); isPhotoEditMode = !isPhotoEditMode;
@@ -316,12 +335,14 @@
                 grid.appendChild(box);
             });
             document.getElementById('modal-img-container').style.display = 'none';
+            document.getElementById('direct-del-btn').style.display = 'none';
             document.getElementById('photo-edit-view').style.display = 'block';
             document.getElementById('edit-actions').style.display = 'flex';
         } else {
             document.getElementById('photo-edit-view').style.display = 'none';
             document.getElementById('edit-actions').style.display = 'none';
             document.getElementById('modal-img-container').style.display = 'flex';
+            document.getElementById('direct-del-btn').style.display = 'block';
             showModalImg();
         }
     }
