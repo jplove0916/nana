@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>나나 통합 계산기</title>
     <style>
-        /* [의장님 전용 UI - 냥냥이 기준 코드 100% 준수] */
+        /* [의장님 지시: 기존 UI 및 정교한 로직 100% 유지] */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; overflow-x: hidden; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
@@ -279,18 +279,14 @@
     function deleteSelectedPhotos(e) { e.stopPropagation(); const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotos(); togglePhotoEdit(e); if (modalImgList.length === 0) closeModal(); else { modalImgIdx = 0; showModalImg(); } } }
     function updateLibPhotos() { if (!currentLoadedId) return; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === currentLoadedId); if (item) { item.imgList = [...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
 
-    /* [의장님 수정: SNS 네이티브 공유 API 연동] */
     async function shareSelectedPhotos(e) {
         e.stopPropagation();
         const cbs = document.querySelectorAll('.photo-cb:checked');
         if (cbs.length === 0) { alert("공유할 사진을 선택해주세요."); return; }
-        
-        if (!navigator.share) { alert("현재 브라우저는 공유 기능을 지원하지 않습니다. (HTTPS 환경인지 확인해주세요)"); return; }
-
+        if (!navigator.share) { alert("현재 브라우저는 공유 기능을 지원하지 않습니다."); return; }
         try {
             const filesArray = [];
             const selectedIndices = Array.from(cbs).map(cb => parseInt(cb.value));
-            
             for (let idx of selectedIndices) {
                 const dataUrl = modalImgList[idx];
                 const response = await fetch(dataUrl);
@@ -298,22 +294,10 @@
                 const file = new File([blob], `nana_product_${idx}.jpg`, { type: 'image/jpeg' });
                 filesArray.push(file);
             }
-
-            const shareData = {
-                title: '나나 통합 계산기 상품 정보',
-                text: `상품 정보 공유드립니다.`,
-                files: filesArray
-            };
-
-            if (navigator.canShare && navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-            } else {
-                alert("이 브라우저에서는 파일 공유를 지원하지 않습니다.");
-            }
-        } catch (err) {
-            console.error("공유 실패:", err);
-            if (err.name !== 'AbortError') alert("공유 중 오류가 발생했습니다.");
-        }
+            const shareData = { title: '나나 통합 계산기 상품 정보', text: `상품 정보 공유드립니다.`, files: filesArray };
+            if (navigator.canShare && navigator.canShare(shareData)) await navigator.share(shareData);
+            else alert("이 브라우저에서는 파일 공유를 지원하지 않습니다.");
+        } catch (err) { console.error("공유 실패:", err); }
     }
 
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
@@ -322,7 +306,92 @@
     function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = ""; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item' + (isLibEditing ? ' editing' : ''); div.onclick = () => { if(isLibEditing) { const cb = div.querySelector('.lib-checkbox'); cb.checked = !cb.checked; } else loadItem(item.id); }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; div.innerHTML = `<input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()"><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div><div class="library-info"><div class="library-title-row"><div class="library-title">${item.title}</div><span class="edit-icon" onclick="editItemTitle(event, ${item.id})">✏️</span></div><div class="library-date">${item.date}</div></div>`; listContainer.appendChild(div); }); }
     function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
     function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
-    function doCalc() { updateBoxGuide(); const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice'); const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput'); const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea'); const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo'); const liveDetail = document.getElementById('liveDetail'); let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } } document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden"; const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0); document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden"; document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden"; ['cost', 'w', 'local', 'buffer'].forEach(id => { const input = document.getElementById(id); const dot = document.getElementById('dot_' + id); const val = input.value.trim(); let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) <= 0) : (val === ""); dot.style.visibility = isInvalid ? "visible" : "hidden"; }); const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== ""); document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden"; if (!selectedCode || isExEmpty) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; } const div = parseFloat(document.getElementById('shipType').value) || 6000; const cost = parseFloat(document.getElementById('cost').value) || 0; const local = parseFloat(document.getElementById('local').value) || 0; const pack = parseFloat(packInput.value) || 0; const buffer = parseFloat(document.getElementById('buffer').value) || 0; const duty = parseFloat(document.getElementById('duty').value) || 0; const w = parseFloat(document.getElementById('w').value) || 0; const x = parseFloat(document.getElementById('x').value) || 0; const y = parseFloat(document.getElementById('y').value) || 0; const z = parseFloat(document.getElementById('z').value) || 0; const volW = Math.round((x * y * z / div) * 100) / 100; const finalW = Math.max(w, volW); const data = RATES[selectedCode]; if(!data) return; let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee)); const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate); liveDetail.innerHTML = `<span>• 실중량: <b>${w.toFixed(2)}kg</b> / 부피무게: <b>${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`; liveDetail.style.display = 'block'; if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; } const marginVal = parseFloat(marginInput.value) || 0; const fixedPriceVal = preciseKrwValue; let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate; let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal; const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; const marginText = (actualMargin < 0) ? "손해" : "예상 마진"; document.getElementById('resMarginInfo').style.color = marginColor; document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`; fInfo.style.color = marginColor; fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`; bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`; document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)"; marginInput.classList.toggle('mode-margin', lastField === 'margin'); priceInput.classList.toggle('mode-price', lastField === 'price'); resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block'; }
+
+    /* [의장님 수정 지시 사항: 무게 비교 녹색 강조 로직 복구] */
+    function doCalc() { 
+        updateBoxGuide(); 
+        const marginInput = document.getElementById('margin'); 
+        const priceInput = document.getElementById('fixedPrice'); 
+        const exInput = document.getElementById('ex'); 
+        const countryInput = document.getElementById('countryInput'); 
+        const packInput = document.getElementById('pack'); 
+        const resultArea = document.getElementById('resultArea'); 
+        const fInfo = document.getElementById('fixedPriceInfo'); 
+        const bInfo = document.getElementById('bepInfo'); 
+        const liveDetail = document.getElementById('liveDetail'); 
+        
+        let selectedCode = ""; 
+        for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } } 
+        document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden"; 
+        
+        const exValRaw = exInput.value.trim(); 
+        const ex = parseFloat(exValRaw); 
+        const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0); 
+        document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden"; 
+        document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden"; 
+        
+        ['cost', 'w', 'local', 'buffer'].forEach(id => { 
+            const input = document.getElementById(id); 
+            const dot = document.getElementById('dot_' + id); 
+            const val = input.value.trim(); 
+            // 무게가 '1' 미만일 경우 빨간 점이 없어지지 않는 규칙 준수
+            let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) < 1) : (val === ""); 
+            dot.style.visibility = isInvalid ? "visible" : "hidden"; 
+        }); 
+
+        const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== ""); 
+        document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden"; 
+        
+        if (!selectedCode || isExEmpty) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; } 
+        
+        const div = parseFloat(document.getElementById('shipType').value) || 6000; 
+        const cost = parseFloat(document.getElementById('cost').value) || 0; 
+        const local = parseFloat(document.getElementById('local').value) || 0; 
+        const pack = parseFloat(packInput.value) || 0; 
+        const buffer = parseFloat(document.getElementById('buffer').value) || 0; 
+        const duty = parseFloat(document.getElementById('duty').value) || 0; 
+        const w = parseFloat(document.getElementById('w').value) || 0; 
+        const x = parseFloat(document.getElementById('x').value) || 0; 
+        const y = parseFloat(document.getElementById('y').value) || 0; 
+        const z = parseFloat(document.getElementById('z').value) || 0; 
+        
+        const volW = Math.round((x * y * z / div) * 100) / 100; 
+        const finalW = Math.max(w, volW); 
+        const data = RATES[selectedCode]; 
+        if(!data) return; 
+
+        let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee)); 
+        const bufferRate = (100 - buffer) / 100; 
+        const expenseSum = cost + local + pack + duty + shipKrw; 
+        const bepKrw = (expenseSum / bufferRate); 
+
+        // [무게 강조 로직 복구 지점]
+        const wColor = (w >= volW && w > 0) ? "color:#27ae60; font-weight:bold;" : "";
+        const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
+
+        liveDetail.innerHTML = `<span>• 실중량: <b style="${wColor}">${w.toFixed(2)}kg</b> / 부피무게: <b style="${volColor}">${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`; 
+        liveDetail.style.display = 'block'; 
+
+        if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; } 
+        const marginVal = parseFloat(marginInput.value) || 0; 
+        const fixedPriceVal = preciseKrwValue; 
+        let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate; 
+        let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal; 
+        
+        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; 
+        const marginText = (actualMargin < 0) ? "손해" : "예상 마진"; 
+        document.getElementById('resMarginInfo').style.color = marginColor; 
+        document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`; 
+        fInfo.style.color = marginColor; 
+        fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`; 
+        bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`; 
+        document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)"; 
+        marginInput.classList.toggle('mode-margin', lastField === 'margin'); 
+        priceInput.classList.toggle('mode-price', lastField === 'price'); 
+        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); 
+        resultArea.style.display = 'block'; 
+    }
+
     function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; document.getElementById('lib-batch-del').style.display = 'none'; document.getElementById('lib-edit-toggle').innerText = '편집'; updateAddressTitle(); renderLibrary(); } else { loadInputs(); doCalc(); } }
     async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; } catch (err) { alert("카메라 권한 필요"); } }
     function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; renderPreviews(); }
