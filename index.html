@@ -84,6 +84,7 @@
         
         .batch-del-top-btn { font-size: 11px; padding: 6px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: none; margin-right: 5px; }
 
+        /* [수정: 편집/공유 시 쾌적한 뷰를 위한 모달 스타일] */
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
         #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
         #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s ease-out; cursor: zoom-in; }
@@ -95,14 +96,15 @@
         #photo-edit-btn { background:rgba(255,255,255,0.25); color:white; border:1px solid rgba(255,255,255,0.5); padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; backdrop-filter: blur(5px); }
         #direct-del-btn { background:rgba(231,76,60,0.85); color:white; border:none; padding:10px 18px; border-radius:25px; font-size:13px; cursor:pointer; font-weight:bold; }
         
-        #photo-edit-view { display:none; width:90%; max-height:70%; overflow-y:auto; background:white; border-radius:12px; padding:15px; box-sizing:border-box; z-index:10003; }
-        .edit-thumb-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
-        .edit-thumb-box { position:relative; aspect-ratio:1/1; border-radius:6px; overflow:hidden; border:2px solid #eee; }
+        /* [수정 핵심: 편집 시 리스트만 보여주는 전용 뷰] */
+        #photo-edit-view { display:none; width:90%; height:85%; overflow-y:auto; background:white; border-radius:12px; padding:20px; box-sizing:border-box; z-index:10003; }
+        .edit-thumb-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; padding-bottom: 80px; }
+        .edit-thumb-box { position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:2px solid #eee; }
         .edit-thumb-box img { width:100%; height:100%; object-fit:cover; }
-        .photo-cb { position:absolute; top:5px; right:5px; width:20px; height:20px; z-index:2; }
+        .photo-cb { position:absolute; top:5px; right:5px; width:22px; height:22px; z-index:2; }
         
-        #edit-actions { display:none; position:absolute; bottom:30px; width:100%; justify-content:center; gap:10px; z-index:10004; }
-        .action-btn { padding:12px 20px; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.3); }
+        #edit-actions { display:none; position:fixed; bottom:15%; width:85%; justify-content:center; gap:10px; z-index:10004; background: white; padding: 15px 0; border-top: 1px solid #eee; }
+        .action-btn { flex: 1; padding:12px 0; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
 
         .unit-selector { display: flex; gap: 8px; align-items: center; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; border: 1px solid #eee; margin-left: 10px; }
         .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
@@ -123,15 +125,20 @@
 <div id="img-modal" onclick="closeModal()">
     <div id="modal-top-bar"><span id="modal-counter"></span></div>
     <div id="modal-img-container"><img id="modal-img" src="" onclick="toggleZoom(event)"></div>
+    
     <div class="modal-bottom-btns" id="modal-controls" onclick="event.stopPropagation()">
         <button id="direct-del-btn" onclick="deleteCurrentPhoto(event)">삭제</button>
         <button id="photo-edit-btn" onclick="togglePhotoEdit(event)">편집/공유</button>
     </div>
-    <div id="photo-edit-view" onclick="event.stopPropagation()"><div id="edit-thumb-grid" class="edit-thumb-grid"></div></div>
-    <div id="edit-actions" onclick="event.stopPropagation()">
-        <button class="action-btn" style="background:#e74c3c; color:white;" onclick="deleteSelectedPhotos(event)">선택 삭제</button>
-        <button class="action-btn" style="background:#fee500; color:#3c1e1e;" onclick="shareSelectedPhotos(event)">SNS 공유</button>
-        <button class="action-btn" style="background:#95a5a6; color:white;" onclick="togglePhotoEdit(event)">취소</button>
+
+    <div id="photo-edit-view" onclick="event.stopPropagation()">
+        <h4 style="margin:0 0 15px 0; text-align:center; color:#333;">사진 선택</h4>
+        <div id="edit-thumb-grid" class="edit-thumb-grid"></div>
+        <div id="edit-actions">
+            <button class="action-btn" style="background:#e74c3c; color:white;" onclick="deleteSelectedPhotos(event)">삭제</button>
+            <button class="action-btn" style="background:#fee500; color:#3c1e1e;" onclick="shareSelectedPhotos(event)">공유</button>
+            <button class="action-btn" style="background:#95a5a6; color:white;" onclick="togglePhotoEdit(event)">취소</button>
+        </div>
     </div>
 </div>
 
@@ -228,10 +235,9 @@
     let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null;
     let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
-    
-    /* [수정: 계산기 히스토리 관리용] */
     let calcHistory = []; let historyIndex = -1;
 
+    // 뒤로가기 대응
     window.addEventListener('popstate', function(event) {
         const modal = document.getElementById('img-modal');
         if (modal.style.display === 'flex') {
@@ -240,20 +246,23 @@
         }
     });
 
+    // 스와이프 및 탭 전환
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
         const diffX = e.changedTouches[0].screenX - mainTouchStartX;
         const isModalOpen = document.getElementById('img-modal').style.display === "flex";
+        const isEditView = document.getElementById('photo-edit-view').style.display === "block";
+        
         if (!isModalOpen && Math.abs(diffX) > 62) {
             const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
             if (diffX < 0 && currentTab === 'calc') switchTab('lib'); else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
-        } else if (isModalOpen && Math.abs(diffX) > 60) {
+        } else if (isModalOpen && !isEditView && Math.abs(diffX) > 60) {
             if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); }
             else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
         }
     }, {passive: true});
 
-    /* [수정: 누락된 모달 내 삭제/편집 기능 구현] */
+    // [편집 모드 전용 함수군]
     function deleteCurrentPhoto(e) {
         e.stopPropagation();
         if (confirm("현재 사진을 삭제하시겠습니까?")) {
@@ -263,40 +272,64 @@
                 modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1);
                 showModalImg();
             }
-            // 원본 데이터(localStorage) 업데이트
             updateLibPhotos();
         }
     }
+
     function togglePhotoEdit(e) {
         e.stopPropagation();
         const view = document.getElementById('photo-edit-view');
+        const imgContainer = document.getElementById('modal-img-container');
+        const topBar = document.getElementById('modal-top-bar');
+        const mainBtns = document.getElementById('modal-controls');
         const actions = document.getElementById('edit-actions');
-        const controls = document.getElementById('modal-controls');
-        const isEditing = view.style.display === 'block';
-        view.style.display = isEditing ? 'none' : 'block';
-        actions.style.display = isEditing ? 'none' : 'flex';
-        controls.style.display = isEditing ? 'flex' : 'none';
-        if (!isEditing) renderEditThumbs();
+        
+        const isOpening = view.style.display !== 'block';
+        
+        if (isOpening) {
+            view.style.display = 'block';
+            imgContainer.style.display = 'none';
+            topBar.style.display = 'none';
+            mainBtns.style.display = 'none';
+            actions.style.display = 'flex';
+            renderEditThumbs();
+        } else {
+            view.style.display = 'none';
+            imgContainer.style.display = 'flex';
+            topBar.style.display = 'flex';
+            mainBtns.style.display = 'flex';
+            actions.style.display = 'none';
+        }
     }
+
     function renderEditThumbs() {
         const grid = document.getElementById('edit-thumb-grid');
         grid.innerHTML = "";
         modalImgList.forEach((src, idx) => {
             const box = document.createElement('div');
             box.className = 'edit-thumb-box';
-            box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}">`;
+            box.onclick = (e) => {
+                const cb = box.querySelector('.photo-cb');
+                cb.checked = !cb.checked;
+            };
+            box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`;
             grid.appendChild(box);
         });
     }
-    function deleteSelectedPhotos() {
+
+    function deleteSelectedPhotos(e) {
+        e.stopPropagation();
         const cbs = document.querySelectorAll('.photo-cb:checked');
         if (cbs.length === 0) return;
-        const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a);
-        indices.forEach(idx => modalImgList.splice(idx, 1));
-        updateLibPhotos();
-        togglePhotoEdit({stopPropagation:()=>{}});
-        if (modalImgList.length === 0) closeModal(); else { modalImgIdx = 0; showModalImg(); }
+        if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) {
+            const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a);
+            indices.forEach(idx => modalImgList.splice(idx, 1));
+            updateLibPhotos();
+            togglePhotoEdit(e);
+            if (modalImgList.length === 0) closeModal(); else { modalImgIdx = 0; showModalImg(); }
+        }
     }
+
     function updateLibPhotos() {
         if (!currentLoadedId) return;
         let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
@@ -308,12 +341,11 @@
         }
     }
 
-    /* [수정: 계산기 이력 버튼 기능 구현] */
+    // [기존 계산 로직 및 유틸리티 - 1%도 수정 없음]
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() {
         const data = saveInputs();
-        // 마지막 기록과 다를 때만 히스토리에 추가
         if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) {
             calcHistory = calcHistory.slice(0, historyIndex + 1);
             calcHistory.push(JSON.parse(JSON.stringify(data)));
@@ -440,18 +472,22 @@
         if(!list || list.length === 0) return; 
         modalImgList = list; 
         modalImgIdx = 0; 
-        currentLoadedId = itemId; // 사진 삭제 시 원본 추적용
+        currentLoadedId = itemId; 
         showModalImg(); 
         document.getElementById('img-modal').style.display = "flex"; 
         history.pushState(null, null, window.location.pathname);
     }
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
-    function closeModal() { document.getElementById('img-modal').style.display = "none"; }
+    function closeModal() { 
+        const view = document.getElementById('photo-edit-view');
+        if (view.style.display === 'block') return; // 편집 모드일 땐 배경 클릭으로 안 닫히게 보호
+        document.getElementById('img-modal').style.display = "none"; 
+    }
     function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
     function toggleZoom(e) { e.stopPropagation(); const img = e.target; img.style.transform = (img.style.transform === 'scale(2)') ? 'scale(1)' : 'scale(2)'; img.style.cursor = (img.style.transform === 'scale(2)') ? 'zoom-out' : 'zoom-in'; }
-    function shareSelectedPhotos(e) { alert("SNS 공유 기능은 브라우저 보안 정책상 모바일 '공유하기' 기능을 통해 구현 가능합니다."); }
+    function shareSelectedPhotos(e) { alert("SNS 공유 기능은 모바일 OS의 '공유하기' API 연동이 필요합니다."); }
 
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); };
 </script>
