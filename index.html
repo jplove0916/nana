@@ -98,7 +98,6 @@
         .edit-thumb-box img { width:100%; height:100%; object-fit:cover; }
         .photo-cb { position:absolute; top:5px; right:5px; width:22px; height:22px; z-index:2; }
         
-        /* [의장님 지시: 취소 버튼 정렬 밀림 수정] */
         #edit-actions { display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); width:90%; justify-content:center; gap:10px; z-index:10004; background:white; padding:15px; border-radius:20px; box-shadow:0 -5px 20px rgba(0,0,0,0.1); box-sizing:border-box; }
         .action-btn { flex:1; padding:12px 0; border-radius:30px; border:none; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
         
@@ -254,28 +253,14 @@
         }, null, { enableHighAccuracy: true });
     }
 
-    /* [의장님 지시: 핸드폰 뒤로 가기 버튼 연동 및 전단계 이동 로직] */
     window.onpopstate = function(event) {
         const modal = document.getElementById('img-modal');
         const camera = document.getElementById('camera-overlay');
-        
-        // 1. 카메라 켜져 있으면 끄기
-        if (camera.style.display === 'flex') {
-            stopCamera();
-            return;
-        }
-        
-        // 2. 모달 열려 있으면 처리
+        if (camera.style.display === 'flex') { stopCamera(); return; }
         if (modal.style.display === 'flex') {
             const view = document.getElementById('photo-edit-view');
-            if (view.style.display === 'block') {
-                // 편집 뷰가 열려있으면 편집 뷰만 닫기
-                togglePhotoEdit({ stopPropagation: () => {} });
-            } else {
-                // 전체 모달 닫기
-                modal.style.display = 'none';
-            }
-            // 브라우저가 실제로 뒤로 가는 것을 막기 위해 현재 상태 재고정
+            if (view.style.display === 'block') { togglePhotoEdit({ stopPropagation: () => {} }); }
+            else { modal.style.display = 'none'; }
             history.pushState(null, null, window.location.pathname);
         }
     };
@@ -283,7 +268,8 @@
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
         const diffX = e.changedTouches[0].screenX - mainTouchStartX;
-        const isModalOpen = document.getElementById('img-modal').style.display === "flex";
+        const modal = document.getElementById('img-modal');
+        const isModalOpen = modal.style.display === "flex";
         const isEditView = document.getElementById('photo-edit-view').style.display === "block";
         if (!isModalOpen && Math.abs(diffX) > 62) {
             const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
@@ -294,11 +280,65 @@
         }
     }, {passive: true});
 
-    function deleteCurrentPhoto(e) { e.stopPropagation(); if (confirm("현재 사진을 삭제하시겠습니까?")) { modalImgList.splice(modalImgIdx, 1); if (modalImgList.length === 0) closeModal(); else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); } updateLibPhotos(); } }
+    /* [의장님 지시: 삭제 시 즉시 반영 및 데이터 동기화 로직 강화] */
+    function deleteCurrentPhoto(e) { 
+        e.stopPropagation(); 
+        if (confirm("현재 사진을 삭제하시겠습니까?")) { 
+            modalImgList.splice(modalImgIdx, 1); 
+            updateLibPhotos(); // 라이브러리 데이터와 즉시 동기화
+            if (modalImgList.length === 0) {
+                closeModal(); 
+            } else { 
+                modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); 
+                showModalImg(); 
+            }
+        } 
+    }
+
     function togglePhotoEdit(e) { e.stopPropagation(); const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; } }
+    
     function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
-    function deleteSelectedPhotos(e) { e.stopPropagation(); const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotos(); togglePhotoEdit(e); if (modalImgList.length === 0) closeModal(); else { modalImgIdx = 0; showModalImg(); } } }
-    function updateLibPhotos() { if (!currentLoadedId) return; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === currentLoadedId); if (item) { item.imgList = [...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } }
+
+    /* [의장님 지시: 편집창 삭제 시 즉시 렌더링 반영] */
+    function deleteSelectedPhotos(e) { 
+        e.stopPropagation(); 
+        const cbs = document.querySelectorAll('.photo-cb:checked'); 
+        if (cbs.length === 0) return; 
+        if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { 
+            const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); 
+            indices.forEach(idx => modalImgList.splice(idx, 1)); 
+            
+            updateLibPhotos(); // 라이브러리 데이터 동기화
+            
+            if (modalImgList.length === 0) {
+                togglePhotoEdit(e); // UI 먼저 닫고
+                closeModal(); // 모달 닫기
+            } else {
+                renderEditThumbs(); // 삭제 후 남은 사진 즉시 재렌더링
+                modalImgIdx = 0;
+                showModalImg();
+            }
+        } 
+    }
+
+    /* [의장님 지시: 사진 0개일 때 목록에서 자동 삭제] */
+    function updateLibPhotos() { 
+        if (!currentLoadedId) return; 
+        let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
+        let itemIndex = lib.findIndex(i => i.id === currentLoadedId);
+        
+        if (itemIndex > -1) {
+            if (modalImgList.length === 0) {
+                // 사진이 한 장도 없으면 해당 상품 자체를 삭제
+                lib.splice(itemIndex, 1);
+                unloadItem();
+            } else {
+                lib[itemIndex].imgList = [...modalImgList]; 
+            }
+            localStorage.setItem('nanaLibrary', JSON.stringify(lib)); 
+            renderLibrary(); // 상품 저장소 목록 즉시 갱신
+        } 
+    }
 
     async function shareSelectedPhotos(e) {
         e.stopPropagation();
@@ -324,7 +364,21 @@
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() { const data = saveInputs(); if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) { calcHistory = calcHistory.slice(0, historyIndex + 1); calcHistory.push(JSON.parse(JSON.stringify(data))); if (calcHistory.length > 30) calcHistory.shift(); historyIndex = calcHistory.length - 1; } doCalc(); }
-    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = ""; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item' + (isLibEditing ? ' editing' : ''); div.onclick = () => { if(isLibEditing) { const cb = div.querySelector('.lib-checkbox'); cb.checked = !cb.checked; } else loadItem(item.id); }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; div.innerHTML = `<input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()"><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div><div class="library-info"><div class="library-title-row"><div class="library-title">${item.title}</div><span class="edit-icon" onclick="editItemTitle(event, ${item.id})">✏️</span></div><div class="library-date">${item.date}</div></div>`; listContainer.appendChild(div); }); }
+    
+    function renderLibrary() { 
+        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
+        const listContainer = document.getElementById('library-list'); 
+        listContainer.innerHTML = ""; 
+        lib.forEach(item => { 
+            const div = document.createElement('div'); 
+            div.className = 'library-item' + (isLibEditing ? ' editing' : ''); 
+            div.onclick = () => { if(isLibEditing) { const cb = div.querySelector('.lib-checkbox'); cb.checked = !cb.checked; } else loadItem(item.id); }; 
+            const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; 
+            div.innerHTML = `<input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()"><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${JSON.stringify(item.imgList).replace(/"/g, '&quot;')}, ${item.id})"></div><div class="library-info"><div class="library-title-row"><div class="library-title">${item.title}</div><span class="edit-icon" onclick="editItemTitle(event, ${item.id})">✏️</span></div><div class="library-date">${item.date}</div></div>`; 
+            listContainer.appendChild(div); 
+        }); 
+    }
+
     function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
     function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
 
