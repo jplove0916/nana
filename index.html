@@ -6,7 +6,7 @@
     <title>나나 통합 계산기</title>
     <style>
         /* [의장님 전용 UI - 냥냥이 기준 코드 100% 준수] */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; overflow-x: hidden; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
         .nav-tabs button.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -75,7 +75,6 @@
         .library-title { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; }
         .library-date { font-size: 10px; color: #999; }
 
-        /* [상세 보기 UI - 의장님 지시사항: 삭제 버튼 추가] */
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
         #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
         #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s ease-out; cursor: zoom-in; }
@@ -119,16 +118,13 @@
             <button id="photo-edit-btn" onclick="togglePhotoEdit(event)">편집/공유</button>
         </div>
     </div>
-
     <div id="modal-img-container">
         <img id="modal-img" src="" onclick="toggleZoom(event)">
     </div>
-
     <div id="photo-edit-view" onclick="event.stopPropagation()">
         <h4 style="margin:0 0 15px 0; text-align:center;">사진 선택 (삭제/공유)</h4>
         <div id="edit-thumb-grid" class="edit-thumb-grid"></div>
     </div>
-
     <div id="edit-actions">
         <button class="action-btn" style="background:#e74c3c; color:white;" onclick="deleteSelectedPhotos(event)">선택 삭제</button>
         <button class="action-btn" style="background:#fee500; color:#3c1e1e;" onclick="shareSelectedPhotos(event)">SNS 공유</button>
@@ -224,7 +220,6 @@
             <button style="flex:1; padding:12px; background:#f0f2f5; color:#333; border:1px solid #ccc; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openGallery()">🖼️ 갤러리</button>
         </div>
         <button id="batch-save-btn" style="width:100%; margin-top:8px; padding:14px; background:#3498db; color:white; border:none; border-radius:5px; font-weight:800; cursor:pointer; display:none;" onclick="saveToLibrary()">💾 이 구성으로 저장하기</button>
-        
         <input type="file" id="photoGallery" accept="image/*" multiple style="display:none;" onchange="handleImg(this)">
         <hr style="margin:20px 0 10px 0; border:0; border-top:1px solid #eee;">
         <span style="font-size: 12px; font-weight: bold; color: #27ae60; display: block; margin-bottom: 8px;">저장 목록</span>
@@ -233,7 +228,6 @@
 </div>
 
 <script>
-    /* [기존 데이터 및 로직 100% 보존] */
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨eden": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
     const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
@@ -243,8 +237,28 @@
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     let modalImgIdx = 0; let modalImgList = []; let currentItemId = null;
     let videoStream = null; let imgScale = 1; let isPhotoEditMode = false;
+    let mainTouchStartX = 0; // 탭 스와이프용 변수
 
-    /* [계산 로직: 100% 보존] */
+    /* [스와이프 제어 로직 - 의장님 지시사항 추가] */
+    document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
+    document.addEventListener('touchend', e => {
+        const diffX = e.changedTouches[0].screenX - mainTouchStartX;
+        const isModalOpen = document.getElementById('img-modal').style.display === "flex";
+        const isCameraOpen = document.getElementById('camera-overlay').style.display === 'flex';
+        
+        // 카메라나 모달이 열려있지 않을 때만 메인 탭 스와이프 작동
+        if (!isModalOpen && !isCameraOpen && Math.abs(diffX) > 80) {
+            const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
+            if (diffX < 0 && currentTab === 'calc') switchTab('lib');
+            else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
+        }
+        // 모달(사진 크게보기) 상태에서의 사진 스와이프 처리
+        else if (isModalOpen && !isPhotoEditMode && imgScale === 1 && Math.abs(diffX) > 60) {
+            if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); }
+            else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
+        }
+    }, {passive: true});
+
     function doCalc() {
         updateBoxGuide();
         const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice');
@@ -296,7 +310,6 @@
         resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
     }
 
-    /* [상세 보기 및 사진 관리 로직 - 의장님 지시: 즉시 삭제 기능 추가] */
     function openModalWithList(e, list, itemId) {
         e.stopPropagation(); if(!list || list.length === 0) return;
         modalImgList = list; modalImgIdx = 0; currentItemId = itemId; isPhotoEditMode = false;
@@ -374,7 +387,6 @@
         } catch (err) {}
     }
 
-    /* [기본 앱 기능 보존] */
     function switchTab(tab) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
@@ -396,17 +408,6 @@
         canvas.getContext('2d').drawImage(video, 0, 0); currentImgStack.push(canvas.toDataURL('image/jpeg', 0.7));
         document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`;
     }
-    let touchStartX = 0;
-    document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', e => {
-        const diffX = e.changedTouches[0].screenX - touchStartX;
-        if (Math.abs(diffX) > 60) {
-            if (document.getElementById('img-modal').style.display === "flex" && !isPhotoEditMode && imgScale === 1) {
-                if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); }
-                else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
-            }
-        }
-    }, {passive: true});
     function onInputChange() { if (!isNavigating) { const data = saveInputs(); historyStack.push(JSON.parse(JSON.stringify(data))); if (historyStack.length > 30) historyStack.shift(); } doCalc(); }
     function updatePriceInput(val) { lastField = 'price'; const ex = parseFloat(document.getElementById('ex').value) || 1; const isUsd = document.getElementById('unitUsd').checked; const numVal = parseFloat(val) || 0; preciseKrwValue = isUsd ? numVal * ex : numVal; }
     function convertUnitPrice(newUnit) { if (prevUnit === newUnit) return; const priceInput = document.getElementById('fixedPrice'); const ex = parseFloat(document.getElementById('ex').value) || 1; if (preciseKrwValue > 0) { if (newUnit === 'usd') priceInput.value = (preciseKrwValue / ex).toFixed(2); else priceInput.value = Math.round(preciseKrwValue); lastField = 'price'; } prevUnit = newUnit; onInputChange(); }
