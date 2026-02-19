@@ -14,7 +14,6 @@
         .tab-content.active { display: block; }
         .box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #2c3e50; position: relative; box-sizing: border-box; }
         
-        /* 촬영용 실시간 뷰파인더 스타일 */
         #camera-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; }
         #camera-video { width: 100%; max-height: 70%; object-fit: cover; }
         .camera-controls { width: 100%; display: flex; justify-content: space-around; align-items: center; padding: 20px 0; background: rgba(0,0,0,0.8); }
@@ -61,7 +60,6 @@
         #close-loaded { cursor: pointer; font-size: 16px; font-weight: bold; line-height: 1; flex-shrink: 0; color: #adb5bd; margin-top: -2px; }
         
         #liveDetail { margin-top: 10px; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 8px; font-size: 13px; color: #444; line-height: 1.6; display: none; }
-        #liveDetail span { font-size: 13.5px; }
 
         .save-box { background: white; width: 320px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #27ae60; box-sizing: border-box; }
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
@@ -85,7 +83,6 @@
         .unit-selector input[type="radio"] { width: 13px; height: 13px; margin: 0; cursor: pointer; border: 1px solid #ccc; -webkit-appearance: radio !important; appearance: radio !important; }
         .unit-label { font-size: 9px; font-weight: bold; color: #555; cursor: pointer; margin-left: -4px; }
         
-        /* [개선된 이미지 모달] */
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
         #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
         #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s ease-out; cursor: zoom-in; }
@@ -214,8 +211,9 @@
             <button id="edit-mode-btn" style="font-size: 12px; padding: 4px 10px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="toggleEditMode()">편집</button>
         </div>
         <div id="multi-del-row" style="display:none; gap:6px; margin-bottom:10px;">
-            <button style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; flex:1;" onclick="deleteSelected()">선택 삭제</button>
-            <button style="background:#95a5a6; color:white; border:none; padding:6px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="toggleEditMode()">취소</button>
+            <button style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; flex:1;" onclick="deleteSelected()">선택 삭제</button>
+            <button style="background:#fee500; color:#3c1e1e; border:none; padding:8px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; flex:1;" onclick="shareSelectedItems()">선택 공유</button>
+            <button style="background:#95a5a6; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;" onclick="toggleEditMode()">취소</button>
         </div>
         <div id="library-list"></div>
     </div>
@@ -227,30 +225,21 @@
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
     const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
 
-    /* [기존 상태 변수 및 이력 관리 유지] */
+    /* [상태 변수 관리] */
     let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null; let isEditMode = false;
     let historyStack = []; let futureStack = []; let isNavigating = false;
     let prevUnit = 'krw'; let preciseKrwValue = 0; 
     let modalImgIdx = 0; let modalImgList = []; let currentItemId = null;
     let videoStream = null; let imgScale = 1;
 
-    /* [브라우저 뒤로가기 버튼 제어 (백버튼 종료 방지)] */
+    /* [브라우저 뒤로가기 제어] */
     window.addEventListener('popstate', (e) => {
-        if (document.getElementById('img-modal').style.display === "flex") {
-            closeModal();
-            return;
-        }
-        if (document.getElementById('camera-overlay').style.display === "flex") {
-            stopCamera();
-            return;
-        }
-        if (document.getElementById('tab-lib').classList.contains('active')) {
-            switchTab('calc');
-            return;
-        }
+        if (document.getElementById('img-modal').style.display === "flex") { closeModal(); return; }
+        if (document.getElementById('camera-overlay').style.display === "flex") { stopCamera(); return; }
+        if (document.getElementById('tab-lib').classList.contains('active')) { switchTab('calc'); return; }
     });
 
-    /* [계산 로직: 1%도 수정 없음] */
+    /* [계산 로직: 보존] */
     function doCalc() {
         updateBoxGuide();
         const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice');
@@ -258,7 +247,6 @@
         const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea');
         const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo');
         const liveDetail = document.getElementById('liveDetail');
-
         let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } }
         document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden";
         const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0);
@@ -271,9 +259,7 @@
         });
         const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
         document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
-        
         if (!selectedCode || isExEmpty) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; }
-        
         const div = parseFloat(document.getElementById('shipType').value) || 6000;
         const cost = parseFloat(document.getElementById('cost').value) || 0;
         const local = parseFloat(document.getElementById('local').value) || 0;
@@ -286,20 +272,15 @@
         const z = parseFloat(document.getElementById('z').value) || 0;
         const volW = Math.round((x * y * z / div) * 100) / 100;
         const finalW = Math.max(w, volW); const data = RATES[selectedCode];
-        
         let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
         const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate);
-        
         liveDetail.innerHTML = `<span>• 실중량: <b>${w.toFixed(2)}kg</b> / 부피무게: <b>${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`;
         liveDetail.style.display = 'block';
-
         if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
-
         const marginVal = parseFloat(marginInput.value) || 0; const fixedPriceVal = preciseKrwValue;
         let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate;
         let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal;
         const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; const marginText = (actualMargin < 0) ? "손해" : "예상 마진";
-        
         document.getElementById('resMarginInfo').style.color = marginColor;
         document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`;
         fInfo.style.color = marginColor;
@@ -310,48 +291,30 @@
         resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
     }
 
-    /* [이미지 뷰어 및 확대 로직] */
+    /* [이미지 뷰어 로직] */
     function openModalWithList(e, list, itemId) {
         e.stopPropagation(); if(!list || list.length === 0) return;
         modalImgList = list; modalImgIdx = 0; currentItemId = itemId;
-        history.pushState({view: 'modal'}, ""); 
-        showModalImg(); 
+        history.pushState({view: 'modal'}, ""); showModalImg(); 
         document.getElementById('img-modal').style.display = "flex";
     }
-    
     function showModalImg() { 
-        const mImg = document.getElementById('modal-img');
-        mImg.src = modalImgList[modalImgIdx];
+        const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx];
         mImg.style.transform = "scale(1)"; imgScale = 1;
         document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`;
     }
-
-    /* [확대/축소 토글 기능] */
     function toggleZoom(e) {
-        e.stopPropagation();
-        const img = document.getElementById('modal-img');
-        if (imgScale === 1) {
-            imgScale = 2.2;
-            img.style.transform = "scale(2.2)";
-            img.style.cursor = "zoom-out";
-        } else {
-            imgScale = 1;
-            img.style.transform = "scale(1)";
-            img.style.cursor = "zoom-in";
-        }
+        e.stopPropagation(); const img = document.getElementById('modal-img');
+        if (imgScale === 1) { imgScale = 2.2; img.style.transform = "scale(2.2)"; img.style.cursor = "zoom-out"; }
+        else { imgScale = 1; img.style.transform = "scale(1)"; img.style.cursor = "zoom-in"; }
     }
-    
     function changeModalImg(dir) { 
-        if (imgScale !== 1) return; // 확대 중에는 스와이프 방지
-        modalImgIdx += dir; 
+        if (imgScale !== 1) return; modalImgIdx += dir; 
         if(modalImgIdx < 0) modalImgIdx = modalImgList.length - 1; 
-        if(modalImgIdx >= modalImgList.length) modalImgIdx = 0; 
-        showModalImg(); 
+        if(modalImgIdx >= modalImgList.length) modalImgIdx = 0; showModalImg(); 
     }
-
     function deleteSinglePhoto(e) {
-        e.stopPropagation();
-        if (!confirm("이 사진을 현재 항목에서 삭제하시겠습니까?")) return;
+        e.stopPropagation(); if (!confirm("이 사진을 현재 항목에서 삭제하시겠습니까?")) return;
         let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
         let itemIdx = lib.findIndex(i => i.id === currentItemId);
         if (itemIdx > -1) {
@@ -359,42 +322,44 @@
             localStorage.setItem('nanaLibrary', JSON.stringify(lib));
             modalImgList = lib[itemIdx].imgList;
             if (modalImgList.length === 0) closeModal();
-            else {
-                if (modalImgIdx >= modalImgList.length) modalImgIdx = modalImgList.length - 1;
-                showModalImg();
-            }
+            else { if (modalImgIdx >= modalImgList.length) modalImgIdx = modalImgList.length - 1; showModalImg(); }
             renderLibrary();
         }
     }
-
-    /* [모달 내 SNS 공유 기능] */
     async function shareCurrentImg(e) {
-        e.stopPropagation();
-        const currentImgData = modalImgList[modalImgIdx];
+        e.stopPropagation(); const currentImgData = modalImgList[modalImgIdx];
         const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
         const item = lib.find(i => i.id === currentItemId);
-        if (!currentImgData || !navigator.share) {
-            alert("공유를 지원하지 않는 환경입니다.");
-            return;
-        }
+        if (!currentImgData || !navigator.share) { alert("공유를 지원하지 않는 환경입니다."); return; }
         try {
             const blob = await (await fetch(currentImgData)).blob();
             const file = new File([blob], `nana_${item ? item.title : 'product'}.jpg`, { type: 'image/jpeg' });
-            await navigator.share({
-                files: [file],
-                title: '나나 통합 계산기',
-                text: `상품명: ${item ? item.title : '상품 공유'}`
-            });
+            await navigator.share({ files: [file], title: '나나 통합 계산기', text: `상품명: ${item ? item.title : '상품 공유'}` });
+        } catch (err) {}
+    }
+    function closeModal() { document.getElementById('img-modal').style.display = "none"; imgScale = 1; document.getElementById('modal-img').style.transform = "scale(1)"; }
+
+    /* [선택 공유 기능: 신규 추가] */
+    async function shareSelectedItems() {
+        const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        if (selectedIds.length === 0) { alert("공유할 상품을 선택해주세요."); return; }
+        const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]");
+        const itemsToShare = lib.filter(item => selectedIds.includes(item.id));
+        if (!navigator.share) { alert("공유 기능을 지원하지 않는 환경입니다."); return; }
+        try {
+            const files = [];
+            for (const item of itemsToShare) {
+                if (item.imgList && item.imgList.length > 0) {
+                    const blob = await (await fetch(item.imgList[0])).blob();
+                    files.push(new File([blob], `${item.title}.jpg`, { type: 'image/jpeg' }));
+                }
+            }
+            await navigator.share({ files: files, title: '나나 상품 공유', text: `선택된 ${itemsToShare.length}개의 상품 정보입니다.` });
         } catch (err) {}
     }
 
-    function closeModal() { 
-        document.getElementById('img-modal').style.display = "none"; 
-        imgScale = 1; 
-        document.getElementById('modal-img').style.transform = "scale(1)"; 
-    }
-
-    /* [기타 기능 함수들] */
+    /* [기본 기능 보존] */
     function switchTab(tab) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
@@ -404,53 +369,27 @@
         if (tab === 'lib') { isEditMode = false; updateLocationAddress(); renderLibrary(); } 
         else { loadInputs(); doCalc(); }
     }
-
     async function startCamera() {
-        const overlay = document.getElementById('camera-overlay');
-        const video = document.getElementById('camera-video');
-        try {
-            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-            video.srcObject = videoStream;
-            overlay.style.display = 'flex';
-            document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`;
-            history.pushState({view: 'camera'}, "");
-        } catch (err) { alert("카메라 권한이 필요합니다."); }
+        const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video');
+        try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; history.pushState({view: 'camera'}, ""); }
+        catch (err) { alert("카메라 권한이 필요합니다."); }
     }
-
-    function stopCamera() {
-        if (videoStream) videoStream.getTracks().forEach(track => track.stop());
-        document.getElementById('camera-overlay').style.display = 'none';
-        renderPreviews();
-    }
-
+    function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; renderPreviews(); }
     function takePhoto() {
-        const video = document.getElementById('camera-video');
-        const canvas = document.createElement('canvas');
+        const video = document.getElementById('camera-video'); const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        currentImgStack.push(canvas.toDataURL('image/jpeg', 0.7));
-        document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`;
-        video.style.opacity = '0.5'; setTimeout(() => video.style.opacity = '1', 100);
+        canvas.getContext('2d').drawImage(video, 0, 0); currentImgStack.push(canvas.toDataURL('image/jpeg', 0.7));
+        document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; video.style.opacity = '0.5'; setTimeout(() => video.style.opacity = '1', 100);
     }
-
-    /* [스와이프 네비게이션] */
     let touchStartX = 0; let touchStartY = 0;
     document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; }, {passive: true});
     document.addEventListener('touchend', e => {
-        const diffX = e.changedTouches[0].screenX - touchStartX;
-        const diffY = e.changedTouches[0].screenY - touchStartY;
+        const diffX = e.changedTouches[0].screenX - touchStartX; const diffY = e.changedTouches[0].screenY - touchStartY;
         if (Math.abs(diffX) > 60 && Math.abs(diffX) > Math.abs(diffY)) {
-            if (document.getElementById('img-modal').style.display === "flex") {
-                if (imgScale === 1) { if (diffX < 0) changeModalImg(1); else changeModalImg(-1); }
-            } else {
-                const curTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
-                if (diffX < 0 && curTab === 'calc') switchTab('lib');
-                else if (diffX > 0 && curTab === 'lib') switchTab('calc');
-            }
+            if (document.getElementById('img-modal').style.display === "flex") { if (imgScale === 1) { if (diffX < 0) changeModalImg(1); else changeModalImg(-1); } }
+            else { const curTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib'; if (diffX < 0 && curTab === 'calc') switchTab('lib'); else if (diffX > 0 && curTab === 'lib') switchTab('calc'); }
         }
     }, {passive: true});
-
-    /* [기존 보조 함수들 유지] */
     function onInputChange() { if (!isNavigating) { const data = saveInputs(); if (historyStack.length === 0 || JSON.stringify(historyStack[historyStack.length-1]) !== JSON.stringify(data)) { historyStack.push(JSON.parse(JSON.stringify(data))); if (historyStack.length > 30) historyStack.shift(); futureStack = []; } } doCalc(); }
     function updatePriceInput(val) { lastField = 'price'; const ex = parseFloat(document.getElementById('ex').value) || 1; const isUsd = document.getElementById('unitUsd').checked; const numVal = parseFloat(val) || 0; preciseKrwValue = isUsd ? numVal * ex : numVal; }
     function convertUnitPrice(newUnit) { if (prevUnit === newUnit) return; const priceInput = document.getElementById('fixedPrice'); const ex = parseFloat(document.getElementById('ex').value) || 1; if (preciseKrwValue > 0) { if (newUnit === 'usd') priceInput.value = (preciseKrwValue / ex).toFixed(2); else priceInput.value = Math.round(preciseKrwValue); lastField = 'price'; } prevUnit = newUnit; onInputChange(); }
@@ -479,7 +418,6 @@
     function deleteSelected() { const selected = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => parseInt(cb.value)); if (selected.length === 0) return; if (confirm(`${selected.length}개를 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib = lib.filter(item => !selected.includes(item.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); toggleEditMode(); } }
     function updateLocationAddress() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { try { const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`); const data = await res.json(); if (data && data.address) { const road = data.address.road || ""; const houseNumber = data.address.house_number || ""; const suburb = data.address.suburb || ""; let fullAddr = `${road} ${houseNumber} ${suburb} `.trim(); if(fullAddr) { const titleInput = document.getElementById('saveTitle'); if(!titleInput.value) titleInput.value = fullAddr; } } } catch (e) {} }, null, { enableHighAccuracy: true, timeout: 5000 }); }
     function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const maxVol = w * div; const side = Math.pow(maxVol, 1/3); const totalSum = Math.floor(side * 3); guideEl.innerText = `[크기: ${totalSum}cm]`; } else guideEl.innerText = ""; }
-    
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); history.replaceState({tab: 'calc'}, ""); };
 </script>
 </body>
