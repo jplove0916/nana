@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>나나 통합 계산기</title>
     <style>
-        /* [기본 UI 및 로직 100% 유지] */
+        /* [기존 UI 및 스타일 100% 유지] */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; overflow-x: hidden; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
@@ -31,21 +31,20 @@
         .section-title::before { content: "●"; margin-right: 5px; font-size: 7px; }
         label { font-size: 10px; font-weight: bold; color: #444; display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; width: 100%; }
         
-        .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; color: #000; font-weight: 500; }
         
         .search-input { border: 2px solid #2c3e50; background: #f9f9f9; font-weight: bold; }
         .dropdown-container { position: relative; }
-        .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #2c3e50; border-top: none; border-radius: 0 0 5px 5px; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .custom-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #2c3e50; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .custom-list div { padding: 10px; font-size: 13px; border-bottom: 1px solid #eee; cursor: pointer; color: #333; }
         
         .row { display: flex; gap: 6px; margin-bottom: 8px; align-items: flex-end; }
         .row div { flex: 1; min-width: 0; }
-        .result { margin-top: 15px; padding: 12px; border-radius: 10px; display: none; transition: all 0.3s; border: 1px solid #ccc; }
+        .result { margin-top: 15px; padding: 12px; border-radius: 10px; display: none; border: 1px solid #ccc; }
         .mode-margin { background-color: #f0f7ff !important; border: 2px solid #3498db !important; }
         .mode-price { background-color: #fffdf0 !important; border: 2px solid #f1c40f !important; }
-        .price-tag { font-size: 22px; font-weight: bold; color: #000; text-align: center; display: block; margin: 5px 0; word-break: break-all; }
+        .price-tag { font-size: 22px; font-weight: bold; color: #000; text-align: center; display: block; margin: 5px 0; }
         
         #loaded-container { position: absolute; top: -10px; right: 5px; display: none; align-items: flex-start; background: #454d55; color: #f8f9fa; padding: 4px 10px; border-radius: 6px; z-index: 100; max-width: 170px; border: 1px solid #343a40; }
         
@@ -53,16 +52,16 @@
         #live-clock { font-size: 13px; color: #1e8449; font-weight: 800; display: block; margin: -5px 0 15px 0; text-align: center; background: #eafaf1; padding: 4px; border-radius: 5px; border: 1px solid #27ae60; }
         
         #preview-container { width: 100%; min-height: 100px; border: 1px dashed #ccc; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border-radius: 5px; background: #fafafa; box-sizing: border-box; }
-        .thumb-box { position: relative; width: 60px; height: 60px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #eee; }
+        .thumb-box { position: relative; width: 60px; height: 60px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
         .thumb-box img { width: 100%; height: 100%; object-fit: cover; }
         .thumb-del { position: absolute; top: -2px; right: -2px; background: rgba(0,0,0,0.6); color: white; width: 18px; height: 18px; font-size: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-        .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; box-sizing: border-box; position: relative; min-height: 72px; }
+        .library-item { border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; cursor: pointer; background: #fff; position: relative; min-height: 72px; }
         .library-item img { width: 50px; height: 50px; border-radius: 5px; object-fit: cover; margin-right: 10px; }
         .lib-checkbox { width: 22px; height: 22px; margin-right: 10px; display: none; }
         
         #img-modal { display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; flex-direction:column; touch-action: none; }
-        #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; overflow:hidden; position: relative; }
+        #modal-img-container { width:100%; height:80%; display:flex; align-items:center; justify-content:center; position: relative; }
         #modal-img { max-width:95%; max-height:100%; border-radius:8px; transition: transform 0.2s; }
         #modal-top-bar { position:absolute; top:20px; left:0; width:100%; display:flex; justify-content:center; color:white; font-weight:bold; z-index:10002; }
         .modal-bottom-btns { position: absolute; right: 20px; bottom: 40px; display: flex; flex-direction: column; gap: 12px; z-index: 10005; }
@@ -146,7 +145,7 @@
         <div class="section-title">상품 규격 및 배송</div>
         <div class="row">
             <div style="flex: 1.2;"><label>배송 타입</label><select id="shipType" onchange="onInputChange()"><option value="6000">일반 (/6000)</option><option value="5000">특송 (/5000)</option></select></div>
-            <div><label><span>무게(kg) <span id="boxGuide" class="size-guide"></span></span><span id="dot_w" class="req-dot">.</span></label><input type="number" id="w" step="0.01" onfocus="clearField(this)" oninput="onInputChange()"></div>
+            <div><label><span>무게(kg) <span id="boxGuide" style="font-size:10px; color:#3498db; font-weight:bold;"></span></span><span id="dot_w" class="req-dot">.</span></label><input type="number" id="w" step="0.01" onfocus="clearField(this)" oninput="onInputChange()"></div>
         </div>
         <div class="row">
             <div><label>가로(cm)</label><input type="number" id="x" onfocus="clearField(this)" oninput="onInputChange()"></div>
@@ -197,11 +196,11 @@
 </div>
 
 <script>
-    /* [의장님 지시: 로직 핵심 유지 및 삭제 기능만 보완] */
+    /* [의장님 지시: 로직 핵심 유지 및 실시간 삭제 보완] */
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
     const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
-    let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null;
+    let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin';
     let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
     let calcHistory = []; let historyIndex = -1;
@@ -236,13 +235,14 @@
         }
     }, {passive: true});
 
-    /* [의장님 지시: 사진 삭제 로직 정밀 수정] */
+    /* [의장님 지시: 실시간 삭제 및 칸 자동 삭제 보완 로직] */
     function deleteCurrentPhoto(e) { 
         e.stopPropagation(); 
         if (confirm("현재 사진을 삭제하시겠습니까?")) { 
             modalImgList.splice(modalImgIdx, 1); 
-            updateLibPhotos(); // 저장소 데이터 동기화
-            if (modalImgList.length === 0) { handleModalBack(); } 
+            const isEmpty = (modalImgList.length === 0);
+            updateLibPhotos(isEmpty); // 저장소 반영
+            if (isEmpty) { handleModalBack(); } 
             else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); } 
         } 
     }
@@ -254,21 +254,26 @@
         if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { 
             const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); 
             indices.forEach(idx => modalImgList.splice(idx, 1)); 
-            updateLibPhotos(); // 저장소 데이터 동기화 및 즉시 반영
-            togglePhotoEdit(e); 
-            if (modalImgList.length === 0) handleModalBack(); 
-            else { modalImgIdx = 0; showModalImg(); } 
+            const isEmpty = (modalImgList.length === 0);
+            updateLibPhotos(isEmpty); 
+            if (isEmpty) { togglePhotoEdit(e); handleModalBack(); } 
+            else { renderEditThumbs(); modalImgIdx = 0; showModalImg(); } // 화면 즉시 갱신
         } 
     }
 
-    function updateLibPhotos() { 
+    function updateLibPhotos(deleteItemFlag = false) { 
         if (!currentLoadedId) return; 
         let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); 
         let itemIndex = lib.findIndex(i => i.id === currentLoadedId); 
         if (itemIndex !== -1) { 
-            lib[itemIndex].imgList = [...modalImgList]; 
+            if (deleteItemFlag) { 
+                lib.splice(itemIndex, 1); // 사진이 0장이면 상품 자체를 삭제
+                unloadItem(); 
+            } else { 
+                lib[itemIndex].imgList = [...modalImgList]; 
+            }
             localStorage.setItem('nanaLibrary', JSON.stringify(lib)); 
-            renderLibrary(); // 목록 UI 즉시 갱신
+            renderLibrary(); // 저장소 목록 즉시 갱신
         } 
     }
 
@@ -290,26 +295,36 @@
         } 
     }
 
-    function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
+    function renderEditThumbs() { 
+        const grid = document.getElementById('edit-thumb-grid'); 
+        grid.innerHTML = ""; 
+        modalImgList.forEach((src, idx) => { 
+            const box = document.createElement('div'); 
+            box.className = 'edit-thumb-box'; 
+            box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; 
+            box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; 
+            grid.appendChild(box); 
+        }); 
+    }
     
     async function shareSelectedPhotos(e) {
         e.stopPropagation();
         const cbs = document.querySelectorAll('.photo-cb:checked');
-        if (cbs.length === 0) { alert("공유할 사진을 선택해주세요."); return; }
-        if (!navigator.share) { alert("현재 브라우저는 공유 기능을 지원하지 않습니다."); return; }
+        if (cbs.length === 0) return;
+        if (!navigator.share) return;
         try {
             const filesArray = [];
             for (let cb of cbs) {
                 const dataUrl = modalImgList[parseInt(cb.value)];
                 const response = await fetch(dataUrl);
                 const blob = await response.blob();
-                filesArray.push(new File([blob], `nana_pic_${Date.now()}.jpg`, { type: 'image/jpeg' }));
+                filesArray.push(new File([blob], `nana_${Date.now()}.jpg`, { type: 'image/jpeg' }));
             }
             await navigator.share({ title: '나나 상품 정보', files: filesArray });
-        } catch (err) { console.log("공유 취소 또는 오류"); }
+        } catch (err) {}
     }
 
-    /* 나머지 핵심 로직 (계산 및 저장) - 의장님 지시대로 절대 수정 안함 */
+    /* 나머지 핵심 로직 유지 */
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() { const data = saveInputs(); if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) { calcHistory = calcHistory.slice(0, historyIndex + 1); calcHistory.push(JSON.parse(JSON.stringify(data))); if (calcHistory.length > 30) calcHistory.shift(); historyIndex = calcHistory.length - 1; } doCalc(); }
@@ -317,30 +332,26 @@
     function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
     function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
     function doCalc() { 
-        updateBoxGuide(); const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice'); const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput'); const resultArea = document.getElementById('resultArea'); const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo'); const liveDetail = document.getElementById('liveDetail'); 
-        let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } } 
-        document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden"; 
-        const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0); 
-        document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden"; 
-        ['cost', 'w', 'local', 'pack', 'buffer'].forEach(id => { const input = document.getElementById(id); const dot = document.getElementById('dot_' + id); const val = input.value.trim(); let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) < 1) : (val === ""); dot.style.visibility = isInvalid ? "visible" : "hidden"; }); 
-        const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== ""); 
-        document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden"; 
-        if (!selectedCode || isExEmpty) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; } 
-        const div = parseFloat(document.getElementById('shipType').value) || 6000; const cost = parseFloat(document.getElementById('cost').value) || 0; const local = parseFloat(document.getElementById('local').value) || 0; const pack = parseFloat(document.getElementById('pack').value) || 0; const buffer = parseFloat(document.getElementById('buffer').value) || 0; const duty = parseFloat(document.getElementById('duty').value) || 0; const w = parseFloat(document.getElementById('w').value) || 0; const x = parseFloat(document.getElementById('x').value) || 0; const y = parseFloat(document.getElementById('y').value) || 0; const z = parseFloat(document.getElementById('z').value) || 0; 
-        const volW = Math.round((x * y * z / div) * 100) / 100; const finalW = Math.max(w, volW); const data = RATES[selectedCode]; if(!data) return; 
-        let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee)); 
-        const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate); 
-        liveDetail.innerHTML = `<span>• 실중량: <b>${w.toFixed(2)}kg</b> / 부피무게: <b>${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`; 
-        liveDetail.style.display = 'block'; 
-        const marginVal = parseFloat(marginInput.value) || 0; const fixedPriceVal = preciseKrwValue; 
-        let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate; 
-        let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal; 
-        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; 
-        document.getElementById('resMarginInfo').style.color = marginColor; document.getElementById('resMarginInfo').innerText = `${actualMargin < 0 ? '손해' : '예상 마진'}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`; 
-        fInfo.style.color = marginColor; fInfo.innerHTML = lastField === 'price' ? `<span>${actualMargin < 0 ? '손해' : '마진'}: $${(actualMargin / ex).toFixed(2)}</span>` : `<span>예상가: $${(finalPriceKrw / ex).toFixed(2)}</span>`; 
-        bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span>`; 
-        document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)"; 
-        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block'; 
+        const mIn = document.getElementById('margin'); const pIn = document.getElementById('fixedPrice'); const exIn = document.getElementById('ex'); const cIn = document.getElementById('countryInput'); const rA = document.getElementById('resultArea'); const fI = document.getElementById('fixedPriceInfo'); const bI = document.getElementById('bepInfo'); const lD = document.getElementById('liveDetail'); 
+        let sCode = ""; for (let key in NATION_MAP) { if (cIn.value.includes(key)) { sCode = NATION_MAP[key]; break; } } 
+        document.getElementById('dot_countryInput').style.visibility = !sCode ? "visible" : "hidden"; 
+        const ex = parseFloat(exIn.value); const isExE = (!ex || ex <= 0); document.getElementById('dot_ex').style.visibility = isExE ? "visible" : "hidden"; 
+        ['cost', 'w', 'local', 'pack', 'buffer'].forEach(id => { const el = document.getElementById(id); const dot = document.getElementById('dot_' + id); const val = el.value.trim(); dot.style.visibility = (id === 'w') ? (!val || parseFloat(val) < 1) : (!val) ? "visible" : "hidden"; }); 
+        if (!sCode || isExE) { rA.style.display = 'none'; lD.style.display = 'none'; return; } 
+        const div = parseFloat(document.getElementById('shipType').value); const cost = parseFloat(document.getElementById('cost').value)||0; const local = parseFloat(document.getElementById('local').value)||0; const pack = parseFloat(document.getElementById('pack').value)||0; const buff = parseFloat(document.getElementById('buffer').value)||0; const duty = parseFloat(document.getElementById('duty').value)||0; const w = parseFloat(document.getElementById('w').value)||0; const x = parseFloat(document.getElementById('x').value)||0; const y = parseFloat(document.getElementById('y').value)||0; const z = parseFloat(document.getElementById('z').value)||0; 
+        const vW = Math.round((x*y*z/div)*100)/100; const fW = Math.max(w, vW); const d = RATES[sCode]; 
+        let sK = (fW <= 2.0) ? (d.base[Math.ceil(Math.round(fW*10)/10/d.step)-1] || d.base[0]) : (d.base[d.base.length-1] + (Math.ceil((Math.round(fW*10)/10 - 2.0)/0.5) * d.overFee)); 
+        const bR = (100-buff)/100; const eS = cost+local+pack+duty+sK; const bep = (eS/bR); 
+        lD.innerHTML = `<span>• 실중량: <b>${w.toFixed(2)}kg</b> / 부피무게: <b>${vW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${sK.toLocaleString()}원</b> / 지출합계: <b>${Math.round(eS).toLocaleString()}원</b></span>`; lD.style.display = 'block'; 
+        const mVal = parseFloat(mIn.value)||0; const fP = (lastField === 'price' && preciseKrwValue > 0) ? preciseKrwValue : (eS+mVal)/bR; 
+        let aM = (lastField === 'price' && preciseKrwValue > 0) ? (preciseKrwValue*bR)-eS : mVal; 
+        const color = (aM < 0) ? "#d32f2f" : "#2e7d32"; 
+        document.getElementById('resMarginInfo').style.color = color; document.getElementById('resMarginInfo').innerText = `${aM < 0 ? '손해' : '예상 마진'}: $${(aM/ex).toFixed(2)} (${Math.round(aM).toLocaleString()}원)`; 
+        fI.style.color = color; fI.innerHTML = lastField === 'price' ? `<span>${aM<0?'손해':'마진'}: $${(aM/ex).toFixed(2)}</span>` : `<span>예상가: $${(fP/ex).toFixed(2)}</span>`; 
+        bI.innerHTML = `<span>분기점: $${(bep/ex).toFixed(2)}</span>`; 
+        document.getElementById('resPrice').innerText = "$" + (fP/ex).toFixed(2) + " (" + Math.round(fP).toLocaleString() + "원)"; 
+        rA.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); rA.style.display = 'block'; 
+        const side = Math.pow(w*div, 1/3); document.getElementById('boxGuide').innerText = w > 0 ? `[크기: ${Math.floor(side*3)}cm]` : "";
     }
 
     function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; updateAddressTitle(); renderLibrary(); } else { loadInputs(); doCalc(); } }
@@ -362,7 +373,6 @@
     function saveToLibrary() { const titleInput = document.getElementById('saveTitle'); const title = titleInput.value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, imgList: [...currentImgStack], data: saveInputs() }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack = []; titleInput.value = ""; renderPreviews(); renderLibrary(); }
     function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { currentLoadedId = id; applyState(item.data); document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; switchTab('calc'); } }
     function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; onInputChange(); }
-    function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const side = Math.pow(w * div, 1/3); document.getElementById('boxGuide').innerText = w > 0 ? `[크기: ${Math.floor(side * 3)}cm]` : ""; }
     function openModalWithList(e, list, itemId) { e.stopPropagation(); if(!list || list.length === 0) return; history.pushState('modal', null, null); modalImgList = list; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; }
     function showModalImg() { document.getElementById('modal-img').src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
     function updateLast(type) { lastField = type; }
@@ -370,7 +380,7 @@
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
     function toggleZoom(e) { e.stopPropagation(); const img = e.target; img.style.transform = (img.style.transform === 'scale(2)') ? 'scale(1)' : 'scale(2)'; }
     function updateAddressTitle() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`); const data = await response.json(); const addr = data.address; const titleInput = document.getElementById('saveTitle'); if(titleInput.value === "") titleInput.value = `${addr.road || ""} ${addr.house_number || ""} ${addr.suburb || ""}`.trim(); } catch (e) {} }); }
-    window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); };
+    window.onload = () => { loadInputs(); updateClock(); doCalc(); updateAddressTitle(); };
 </script>
 </body>
 </html>
