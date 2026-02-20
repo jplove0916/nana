@@ -231,30 +231,35 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 시 두 번 터치 입력칸 삭제 및 자판 호출 로직 - 재수정판]
+    // [의장님 지시: 확대 시 '오직' 두 번 터치에만 반응하는 초정밀 로직]
     function setupZoomInputHandler() {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
         let lastTap = 0;
         
         inputs.forEach(el => {
+            // 확대 시 기본 포커스/터치 방지 (한 번 터치는 무시)
             el.addEventListener('touchstart', function(e) {
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTap;
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
-
+                
+                // 확대 상태이며 국가 검색창이 아닐 때만 특수 로직 작동
                 if (isZoomed && this.id !== 'countryInput') {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTap;
+                    
                     if (tapLength < 350 && tapLength > 0) {
-                        // 더블 터치 감지 시 기본 동작(줌) 방지 및 로직 실행
-                        e.preventDefault(); 
+                        // [두 번 터치 성공] -> 로직 실행
                         this.value = ''; 
                         if (this.id === 'fixedPrice') preciseKrwValue = 0;
                         
-                        // 자판 호출을 위해 약간의 지연 후 포커스
+                        // 브라우저가 키보드를 확실히 띄우게 함
                         setTimeout(() => {
                             this.focus();
-                        }, 10);
+                        }, 50);
                         
                         onInputChange();
+                    } else {
+                        // [한 번 터치 혹은 너무 느린 터치] -> 브라우저 기본 동작 차단 (아무 반응 없음)
+                        e.preventDefault();
                     }
                     lastTap = currentTime;
                 }
@@ -301,7 +306,7 @@
     function togglePhotoEdit(e) { if(e) { e.preventDefault(); e.stopPropagation(); } if(isProcessing) return; isProcessing=true; const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; } setTimeout(() => { isProcessing = false; }, 300); }
     function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
     async function shareSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!navigator.share) return; try { const filesArray = []; const selectedIndices = Array.from(cbs).map(cb => parseInt(cb.value)); for (let idx of selectedIndices) { const dataUrl = modalImgList[idx]; const response = await fetch(dataUrl); const blob = await response.blob(); const file = new File([blob], `nana_${idx}.jpg`, { type: 'image/jpeg' }); filesArray.push(file); } if (navigator.canShare && navigator.canShare({files: filesArray})) await navigator.share({files: filesArray}); } catch (err) { console.log(err); } }
-    function deleteSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!confirm(`${cbs.length}장의 사진을 삭제할까요?`)) return; const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotosSync(); if (modalImgList.length === 0) { togglePhotoEdit(e); closeModal(); } else { renderEditThumbs(); modalImgIdx = 0; showModalImg(); } renderLibrary(); }
+    function deleteSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}장의 사진을 삭제할까요?`)) { const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotosSync(); if (modalImgList.length === 0) { togglePhotoEdit(e); closeModal(); } else { renderEditThumbs(); modalImgIdx = 0; showModalImg(); } renderLibrary(); } }
     function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
     function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
     function onInputChange() { const data = saveInputs(); if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) { calcHistory = calcHistory.slice(0, historyIndex + 1); calcHistory.push(JSON.parse(JSON.stringify(data))); if (calcHistory.length > 30) calcHistory.shift(); historyIndex = calcHistory.length - 1; } doCalc(); }
