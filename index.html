@@ -231,31 +231,35 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 상태 실시간 정밀 판별 및 스와이프 원천 차단]
+    // [의장님 지시: 확대 시 스와이프를 원천 차단하기 위한 전역 잠금 변수]
+    let swipeLock = false;
+
     document.addEventListener('touchstart', e => { 
         mainTouchStartX = e.changedTouches[0].screenX; 
+        
+        // 터치가 시작되는 순간 이미지의 확대 여부를 즉시 판독하여 잠금 설정
+        const modalImg = document.getElementById('modal-img');
+        const style = window.getComputedStyle(modalImg);
+        const transform = style.getPropertyValue('transform');
+        
+        // matrix(1, 0, 0, 1, 0, 0)가 아니거나 scale(1)이 아니면 확대 상태
+        swipeLock = (transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)');
     }, {passive: true});
 
     document.addEventListener('touchend', e => {
+        // 이미지가 확대된 상태에서 시작된 터치였다면 스와이프 로직을 완전히 무시하고 종료
+        if (swipeLock) return;
+
         const modal = document.getElementById('img-modal');
         const modalImg = document.getElementById('modal-img');
         const isModalOpen = modal.style.display === "flex";
         const isEditView = document.getElementById('photo-edit-view').style.display === "block";
         
-        // 1. 브라우저의 계산된 스타일을 직접 읽어 확대 여부를 판별 (가장 정확한 방법)
-        const computedStyle = window.getComputedStyle(modalImg);
-        const transform = computedStyle.getPropertyValue('transform');
-        
-        // transform이 none이 아니거나 matrix(1, 0, 0, 1, 0, 0)가 아니라면 확대된 상태
-        const isActuallyZoomed = (transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)');
-
-        // 2. 확대 상태라면 스와이프 로직 전면 차단 (이미지 이동 방해 방지)
-        if (isActuallyZoomed && isModalOpen) return;
-
         const diffX = e.changedTouches[0].screenX - mainTouchStartX;
+
         if (e.target.closest('.modal-bottom-btns') || e.target.closest('#modal-top-bar')) return;
         
-        // 3. 모달에서 스와이프 (확대 안 되었을 때만 작동)
+        // 모달에서 스와이프 (확대 안 되었을 때만 도달)
         if (isModalOpen && !isEditView) {
             if (Math.abs(diffX) > 60) {
                 if (diffX < 0) { 
@@ -266,7 +270,7 @@
                 showModalImg();
             }
         } 
-        // 4. 탭 전환 스와이프
+        // 탭 전환 스와이프
         else if (!isModalOpen && Math.abs(diffX) > 70) {
             const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
             if (diffX < 0 && currentTab === 'calc') switchTab('lib');
