@@ -231,28 +231,33 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 시 두 번 터치 입력칸 삭제 및 자판 호출 로직]
+    // [의장님 지시: 확대 시 두 번 터치 입력칸 삭제 및 자판 호출 로직 - 재수정판]
     function setupZoomInputHandler() {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
         let lastTap = 0;
+        
         inputs.forEach(el => {
             el.addEventListener('touchstart', function(e) {
                 const currentTime = new Date().getTime();
                 const tapLength = currentTime - lastTap;
-                // 확대 상태(scale > 1.01) 체크
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
 
                 if (isZoomed && this.id !== 'countryInput') {
-                    if (tapLength < 300 && tapLength > 0) {
-                        // 두 번 터치(더블 탭) 발생 시
-                        this.value = ''; // 값 삭제
+                    if (tapLength < 350 && tapLength > 0) {
+                        // 더블 터치 감지 시 기본 동작(줌) 방지 및 로직 실행
+                        e.preventDefault(); 
+                        this.value = ''; 
                         if (this.id === 'fixedPrice') preciseKrwValue = 0;
-                        this.focus(); // 자판 호출
-                        onInputChange(); // 계산 반영
-                        e.preventDefault(); // 브라우저 기본 줌 방지 및 깔끔한 입력 유도
+                        
+                        // 자판 호출을 위해 약간의 지연 후 포커스
+                        setTimeout(() => {
+                            this.focus();
+                        }, 10);
+                        
+                        onInputChange();
                     }
+                    lastTap = currentTime;
                 }
-                lastTap = currentTime;
             }, { passive: false });
         });
     }
@@ -260,6 +265,7 @@
     function isZoomed() {
         if (window.visualViewport && window.visualViewport.scale > 1.01) return true;
         const modalImg = document.getElementById('modal-img');
+        if (!modalImg) return false;
         const transform = window.getComputedStyle(modalImg).getPropertyValue('transform');
         return (transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)');
     }
