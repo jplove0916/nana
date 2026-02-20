@@ -232,75 +232,56 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 전용 독립 엔진 로직]
+    // [의장님 지시: 확대 시 드래그 허용 + 투터치 입력 독립 모듈]
     function setupZoomIndependentEngine() {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
         let lastTapTime = 0;
         let lastTapTarget = null;
 
         inputs.forEach(el => {
-            // 확대 상태에서의 특별 제어
+            // 터치 이벤트를 감시하되, passive: true로 드래그(화면 이동)를 방해하지 않음
             el.addEventListener('touchstart', function(e) {
-                // 확대 상태인지 실시간 체크 (1.05배 이상 확대 시 작동)
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.05;
-
+                
                 if (isZoomed) {
                     const currentTime = new Date().getTime();
                     const tapLength = currentTime - lastTapTime;
 
-                    // 첫 번째 터치 시: 브라우저 기본 드래그 방해 안 함 (입력창 포커스 막기)
-                    if (lastTapTarget !== e.target || tapLength > 400) {
-                        e.preventDefault(); // 기본 포커스를 막아 자판 생성을 1단계에서 방어 (드래그 가능 상태)
-                    } 
-                    // 두 번째 터치(더블 탭) 시: 값 삭제 및 입력 모드 진입
-                    else {
+                    // 더블 탭 판정 (0.4초 이내 동일 입력칸)
+                    if (lastTapTarget === e.target && tapLength < 400 && tapLength > 0) {
+                        // [더블 탭 성공] -> 입력 모드 가동
                         this.value = '';
                         if (this.id === 'fixedPrice') preciseKrwValue = 0;
-                        this.focus(); // 자판 호출
+                        this.focus(); 
                         onInputChange();
-                        e.preventDefault(); // 추가 줌 방지
+                        lastTapTime = 0; // 초기화
+                    } else {
+                        // [싱글 탭 / 드래그 시도] -> 아무런 간섭을 하지 않아 드래그가 바로 작동함
+                        lastTapTime = currentTime;
+                        lastTapTarget = e.target;
+                        
+                        // 클릭 시 자판이 튀어나오는 것을 막기 위해 지연 blur 처리
+                        setTimeout(() => {
+                            if (document.activeElement === this && (new Date().getTime() - lastTapTime > 400)) {
+                                this.blur();
+                            }
+                        }, 50);
                     }
-
-                    lastTapTime = currentTime;
-                    lastTapTarget = e.target;
-                } else {
-                    // 일반 상태일 때 (확대 안됨)
-                    // 기존 드래그/스와이프 기능 유지 (별도 제어 없음)
                 }
-            }, { passive: false });
+            }, { passive: true });
+
+            // 확대 시 일반적인 클릭(탭)으로 자판 팝업되는 기본 동작 방어
+            el.addEventListener('click', function(e) {
+                const isZoomed = window.visualViewport && window.visualViewport.scale > 1.05;
+                const currentTime = new Date().getTime();
+                if (isZoomed && (currentTime - lastTapTime > 100)) {
+                    // 드래그 우선권을 위해 자판 생성 억제
+                }
+            });
         });
     }
 
-    // 전역 스와이프 기능 (확대 시 자동 무효화)
-    document.addEventListener('touchstart', e => { 
-        if (window.visualViewport && window.visualViewport.scale > 1.05) return;
-        mainTouchStartX = e.changedTouches[0].screenX; 
-    }, {passive: true});
-
-    document.addEventListener('touchend', e => {
-        if (window.visualViewport && window.visualViewport.scale > 1.05) return; // 확대 시 드래그 우선권을 위해 기능 정지
-        
-        const modal = document.getElementById('img-modal');
-        const isModalOpen = modal.style.display === "flex";
-        const isEditView = document.getElementById('photo-edit-view').style.display === "block";
-        const diffX = e.changedTouches[0].screenX - mainTouchStartX;
-        
-        if (e.target.closest('.modal-bottom-btns') || e.target.closest('#modal-top-bar')) return;
-        
-        if (isModalOpen && !isEditView) {
-            if (Math.abs(diffX) > 60) {
-                if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; } 
-                else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; }
-                showModalImg();
-            }
-        } else if (!isModalOpen && Math.abs(diffX) > 70) {
-            const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
-            if (diffX < 0 && currentTab === 'calc') switchTab('lib');
-            else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
-        }
-    }, {passive: true});
-
-    /* [이후 모든 계산 및 부가 기능 로직 동일 유지] */
+    /* [기존 보조/계산 기능들] */
     function toggleZoom(e) { e.stopPropagation(); const img = e.target; if (img.style.transform === 'scale(2)') { img.style.transform = 'scale(1)'; img.style.cursor = 'zoom-in'; } else { img.style.transform = 'scale(2)'; img.style.cursor = 'zoom-out'; } }
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.style.transform = 'scale(1)'; mImg.style.cursor = 'zoom-in'; mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
     function deleteCurrentPhoto(e) { if (e) { e.preventDefault(); e.stopPropagation(); } if (isProcessing) return; if (!confirm("현재 사진을 삭제하시겠습니까?")) return; isProcessing = true; try { modalImgList.splice(modalImgIdx, 1); const isSuccess = updateLibPhotosSync(); if (modalImgList.length === 0 || !isSuccess) { closeModal(); } else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); } renderLibrary(); } finally { setTimeout(() => { isProcessing = false; }, 300); } }
@@ -372,6 +353,33 @@
     function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
+
+    /* [스와이프 로직 - 확대 시 자동 비활성] */
+    document.addEventListener('touchstart', e => { 
+        if (window.visualViewport && window.visualViewport.scale > 1.05) return;
+        mainTouchStartX = e.changedTouches[0].screenX; 
+    }, {passive: true});
+
+    document.addEventListener('touchend', e => {
+        if (window.visualViewport && window.visualViewport.scale > 1.05) return;
+        const modal = document.getElementById('img-modal');
+        const isModalOpen = modal.style.display === "flex";
+        const isEditView = document.getElementById('photo-edit-view').style.display === "block";
+        const diffX = e.changedTouches[0].screenX - mainTouchStartX;
+        if (e.target.closest('.modal-bottom-btns') || e.target.closest('#modal-top-bar')) return;
+        if (isModalOpen && !isEditView) {
+            if (Math.abs(diffX) > 60) {
+                if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; } 
+                else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; }
+                showModalImg();
+            }
+        } else if (!isModalOpen && Math.abs(diffX) > 70) {
+            const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
+            if (diffX < 0 && currentTab === 'calc') switchTab('lib');
+            else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
+        }
+    }, {passive: true});
+
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); setupZoomIndependentEngine(); };
 </script>
 </body>
