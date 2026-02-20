@@ -232,14 +232,16 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 시 드래그 허용 + 투터치 입력 독립 모듈]
+    // [의장님 지시: 확대 시 드래그 완전 허용 + 투터치 입력 독립 모듈]
     function setupZoomIndependentEngine() {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
         let lastTapTime = 0;
         let lastTapTarget = null;
 
         inputs.forEach(el => {
-            // 터치 이벤트를 감시하되, passive: true로 드래그(화면 이동)를 방해하지 않음
+            // 입력칸 위에서도 상하좌우 드래그가 즉각 작동하도록 터치 액션 개방
+            el.style.touchAction = "pan-x pan-y"; 
+
             el.addEventListener('touchstart', function(e) {
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.05;
                 
@@ -247,37 +249,27 @@
                     const currentTime = new Date().getTime();
                     const tapLength = currentTime - lastTapTime;
 
-                    // 더블 탭 판정 (0.4초 이내 동일 입력칸)
                     if (lastTapTarget === e.target && tapLength < 400 && tapLength > 0) {
-                        // [더블 탭 성공] -> 입력 모드 가동
+                        // [더블 탭 성공] -> 입력 허용
                         this.value = '';
                         if (this.id === 'fixedPrice') preciseKrwValue = 0;
                         this.focus(); 
                         onInputChange();
-                        lastTapTime = 0; // 초기화
+                        lastTapTime = 0;
                     } else {
-                        // [싱글 탭 / 드래그 시도] -> 아무런 간섭을 하지 않아 드래그가 바로 작동함
+                        // [싱글 탭 / 드래그 시도] -> 드래그가 막히지 않도록 포커스 즉시 방어
                         lastTapTime = currentTime;
                         lastTapTarget = e.target;
                         
-                        // 클릭 시 자판이 튀어나오는 것을 막기 위해 지연 blur 처리
+                        // 드래그 신호를 브라우저에 양보하기 위해 0.01초 뒤에 blur 처리
                         setTimeout(() => {
                             if (document.activeElement === this && (new Date().getTime() - lastTapTime > 400)) {
                                 this.blur();
                             }
-                        }, 50);
+                        }, 10);
                     }
                 }
             }, { passive: true });
-
-            // 확대 시 일반적인 클릭(탭)으로 자판 팝업되는 기본 동작 방어
-            el.addEventListener('click', function(e) {
-                const isZoomed = window.visualViewport && window.visualViewport.scale > 1.05;
-                const currentTime = new Date().getTime();
-                if (isZoomed && (currentTime - lastTapTime > 100)) {
-                    // 드래그 우선권을 위해 자판 생성 억제
-                }
-            });
         });
     }
 
