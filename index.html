@@ -231,37 +231,45 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 시 '오직' 두 번 터치에만 반응하는 초정밀 로직]
+    // [의장님 지시: 확대 시 드래그는 허용하고 '순수 두 번 터치'만 삭제 로직 실행]
     function setupZoomInputHandler() {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
         let lastTap = 0;
+        let startY = 0;
+        let startX = 0;
         
         inputs.forEach(el => {
-            // 확대 시 기본 포커스/터치 방지 (한 번 터치는 무시)
             el.addEventListener('touchstart', function(e) {
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
+                if (!isZoomed || this.id === 'countryInput') return;
                 
-                // 확대 상태이며 국가 검색창이 아닐 때만 특수 로직 작동
-                if (isZoomed && this.id !== 'countryInput') {
-                    const currentTime = new Date().getTime();
-                    const tapLength = currentTime - lastTap;
-                    
-                    if (tapLength < 350 && tapLength > 0) {
-                        // [두 번 터치 성공] -> 로직 실행
-                        this.value = ''; 
-                        if (this.id === 'fixedPrice') preciseKrwValue = 0;
-                        
-                        // 브라우저가 키보드를 확실히 띄우게 함
-                        setTimeout(() => {
-                            this.focus();
-                        }, 50);
-                        
-                        onInputChange();
-                    } else {
-                        // [한 번 터치 혹은 너무 느린 터치] -> 브라우저 기본 동작 차단 (아무 반응 없음)
-                        e.preventDefault();
-                    }
-                    lastTap = currentTime;
+                startY = e.touches[0].pageY;
+                startX = e.touches[0].pageX;
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                
+                if (tapLength < 350 && tapLength > 0) {
+                    // 두 번 터치 시에만 동작
+                    e.preventDefault();
+                    this.value = '';
+                    if (this.id === 'fixedPrice') preciseKrwValue = 0;
+                    setTimeout(() => { this.focus(); }, 50);
+                    onInputChange();
+                }
+                lastTap = currentTime;
+            }, { passive: false });
+
+            // 확대 시 입력칸 드래그 이동을 방해하지 않도록 터치 엔드 로직 추가
+            el.addEventListener('touchend', function(e) {
+                const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
+                if (!isZoomed || this.id === 'countryInput') return;
+
+                const endY = e.changedTouches[0].pageY;
+                const endX = e.changedTouches[0].pageX;
+                
+                // 터치 후 거의 움직이지 않았을 때(탭)만 브라우저 기본 포커스 차단
+                if (Math.abs(endY - startY) < 5 && Math.abs(endX - startX) < 5) {
+                    e.preventDefault();
                 }
             }, { passive: false });
         });
