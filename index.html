@@ -230,6 +230,7 @@
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
+    let isGloballyZoomed = false; // [의장님 지시: 확대 상태 물리적 체크용]
 
     function deleteCurrentPhoto(e) { 
         if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -271,33 +272,22 @@
     }
 
     function updateAddressTitle() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { const { latitude, longitude } = pos.coords; try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`); const data = await response.json(); if (data && data.address) { const addr = data.address; const road = addr.road || addr.pedestrian || ""; const bNum = addr.house_number || ""; const suburb = addr.suburb || addr.neighbourhood || ""; let finalAddr = `${road} ${bNum} ${suburb}`.trim(); const titleInput = document.getElementById('saveTitle'); if(finalAddr && (titleInput.value === "" || titleInput.dataset.auto === "true")) { titleInput.value = finalAddr; titleInput.dataset.auto = "true"; } } } catch (e) { console.log("주소 변환 실패"); } }, null, { enableHighAccuracy: true }); }
-    window.onpopstate = function(event) { const modal = document.getElementById('img-modal'); const camera = document.getElementById('camera-overlay'); if (camera.style.display === 'flex') { stopCamera(); return; } if (modal.style.display === 'flex') { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') { togglePhotoEdit({ stopPropagation: () => {}, preventDefault: () => {} }); } else { modal.style.display = 'none'; } history.pushState(null, null, window.location.pathname); } };
+    window.onpopstate = function(event) { const modal = document.getElementById('img-modal'); const camera = document.getElementById('camera-overlay'); if (camera.style.display === 'flex') { stopCamera(); return; } if (modal.style.display === 'flex') { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') { togglePhotoEdit({ stopPropagation: () => {}, preventDefault: () => {} }); } else { modal.style.display = 'none'; isGloballyZoomed = false; } history.pushState(null, null, window.location.pathname); } };
     
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     
-    /* [수정 지점: 정밀한 확대 감지 및 스와이프 제어] */
+    /* [수정 지점: 확대 스위치가 켜져있으면 스와이프 기능 강제 차단] */
     document.addEventListener('touchend', e => {
+        if (isGloballyZoomed) return; // 확대 중이면 스와이프 로직 진입 불가
+
         const diffX = e.changedTouches[0].screenX - mainTouchStartX;
         const modal = document.getElementById('img-modal');
         const isModalOpen = modal.style.display === "flex";
         const isEditView = document.getElementById('photo-edit-view').style.display === "block";
-        
-        const modalImg = document.getElementById('modal-img');
-        let isZoomed = false;
-        
-        if (modalImg && isModalOpen) {
-            const style = window.getComputedStyle(modalImg);
-            const transform = style.getPropertyValue('transform');
-            if (transform && transform !== 'none') {
-                const values = transform.split('(')[1].split(')')[0].split(',');
-                const scale = parseFloat(values[0]);
-                if (scale > 1.1) isZoomed = true; 
-            }
-        }
 
         if (e.target.closest('.modal-bottom-btns')) return;
         
-        if (isModalOpen && !isEditView && !isZoomed && Math.abs(diffX) > 60) {
+        if (isModalOpen && !isEditView && Math.abs(diffX) > 60) {
             if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); } 
             else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
         } else if (!isModalOpen && Math.abs(diffX) > 62) {
@@ -306,6 +296,20 @@
             else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
         }
     }, {passive: false});
+
+    function toggleZoom(e) { 
+        e.stopPropagation(); 
+        const img = e.target; 
+        if (img.style.transform === 'scale(2)') {
+            img.style.transform = 'scale(1)';
+            img.style.cursor = 'zoom-in';
+            isGloballyZoomed = false; // 확대 해제
+        } else {
+            img.style.transform = 'scale(2)';
+            img.style.cursor = 'zoom-out';
+            isGloballyZoomed = true; // 확대 활성
+        }
+    }
 
     function togglePhotoEdit(e) { if(e) { e.preventDefault(); e.stopPropagation(); } if(isProcessing) return; isProcessing=true; const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.display = 'none'; } setTimeout(() => { isProcessing = false; }, 300); }
     function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
@@ -324,16 +328,12 @@
         const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0);
         document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden";
         document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden";
-        
         const bufferRaw = bufferInput.value.trim(); const isBufferInvalid = (bufferRaw === "" || parseFloat(bufferRaw) <= 0);
         document.getElementById('dot_buffer').style.visibility = isBufferInvalid ? "visible" : "hidden";
-
         ['cost', 'w', 'local'].forEach(id => { const input = document.getElementById(id); const dot = document.getElementById('dot_' + id); const val = input.value.trim(); let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) < 1) : (val === ""); dot.style.visibility = isInvalid ? "visible" : "hidden"; });
         const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
         document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
-        
         if (!selectedCode || isExEmpty || isBufferInvalid) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; }
-        
         const div = parseFloat(document.getElementById('shipType').value) || 6000; const cost = parseFloat(document.getElementById('cost').value) || 0; const local = parseFloat(document.getElementById('local').value) || 0; const pack = parseFloat(packInput.value) || 0; const buffer = parseFloat(bufferInput.value) || 0; const duty = parseFloat(document.getElementById('duty').value) || 0; const w = parseFloat(document.getElementById('w').value) || 0; const x = parseFloat(document.getElementById('x').value) || 0; const y = parseFloat(document.getElementById('y').value) || 0; const z = parseFloat(document.getElementById('z').value) || 0; const volW = Math.round((x * y * z / div) * 100) / 100; const finalW = Math.max(w, volW); const data = RATES[selectedCode]; if(!data) return;
         let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
         const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate); const wColor = (w >= volW && w > 0) ? "color:#27ae60; font-weight:bold;" : ""; const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
@@ -375,11 +375,10 @@
     function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
     function openModalWithList(event, itemId) { event.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === itemId); if(!item || !item.imgList || item.imgList.length === 0) return; modalImgList = [...item.imgList]; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState({view: 'modal'}, null, window.location.pathname); }
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
-    function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; }
+    function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; isGloballyZoomed = false; // [의장님 지시: 모달 닫을 때 확대 상태 초기화] }
     function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
-    function toggleZoom(e) { e.stopPropagation(); const img = e.target; img.style.transform = (img.style.transform === 'scale(2)') ? 'scale(1)' : 'scale(2)'; img.style.cursor = (img.style.transform === 'scale(2)') ? 'zoom-out' : 'zoom-in'; }
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); };
 </script>
 </body>
