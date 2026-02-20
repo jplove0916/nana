@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>나나 통합 계산기</title>
     <style>
-        /* [의장님 지시: 기존 UI 및 정교한 로직 100% 유지 + 입력칸 드래그 수정] */
+        /* [의장님 지시: 기존 UI 및 정교한 로직 100% 유지 + 입력칸 드래그 문제 해결] */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: pan-x pan-y; overflow-x: hidden; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
@@ -34,8 +34,14 @@
         .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
         
-        /* 의장님 수정 요청 사항 적용: touch-action 추가 */
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; touch-action: pan-x pan-y; }
+        /* [핵심 수정 부분] 확대 시 입력창 내부 터치 드래그 잠금 해제 */
+        input, select { 
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; 
+            font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; 
+            font-weight: 500; 
+            touch-action: pan-x pan-y !important; /* 브라우저의 기본 드래그 이동 허용 */
+            -webkit-user-select: auto !important; /* 드래그를 방해하지 않는 선에서 선택 허용 */
+        }
         
         input[type="text"], input[type="number"] { -webkit-appearance: none; }
         select { font-weight: 700; color: #000; -webkit-appearance: none; }
@@ -233,7 +239,7 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [확대 감지 통합 엔진]
+    // [확대 감지 엔진]
     function isZoomed() {
         if (window.visualViewport && window.visualViewport.scale > 1.01) return true;
         const modalImg = document.getElementById('modal-img');
@@ -243,12 +249,6 @@
 
     document.addEventListener('touchstart', e => { 
         mainTouchStartX = e.changedTouches[0].screenX; 
-    }, {passive: true});
-
-    document.addEventListener('touchmove', e => {
-        if (isZoomed()) {
-            mainTouchStartX = e.changedTouches[0].screenX;
-        }
     }, {passive: true});
 
     document.addEventListener('touchend', e => {
