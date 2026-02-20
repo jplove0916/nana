@@ -6,7 +6,7 @@
     <title>나나 통합 계산기</title>
     <style>
         /* [의장님 지시: 기존 UI 및 정교한 로직 100% 유지] */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: manipulation; overflow-x: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; -webkit-font-smoothing: antialiased; touch-action: pan-x pan-y; overflow-x: hidden; }
         .nav-tabs { display: flex; width: 320px; margin-bottom: 15px; background: #e0e0e0; border-radius: 10px; padding: 5px; box-sizing: border-box; }
         .nav-tabs button { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; background: none; color: #666; transition: 0.3s; }
         .nav-tabs button.active { background: white; color: #2c3e50; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -33,7 +33,7 @@
         
         .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500; touch-action: auto !important; }
         
         input[type="text"], input[type="number"] { -webkit-appearance: none; }
         select { font-weight: 700; color: #000; -webkit-appearance: none; }
@@ -231,7 +231,7 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 지시: 확대 시 드래그는 허용하고 '순수 두 번 터치'만 삭제 로직 실행]
+    // [의장님 지시: 입력창 안에서도 상하좌우 모든 방향 드래그(화면이동) 허용]
     function setupZoomInputHandler() {
         const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
         let lastTap = 0;
@@ -240,16 +240,18 @@
         
         inputs.forEach(el => {
             el.addEventListener('touchstart', function(e) {
+                // 확대 여부와 상관없이 touchstart에서의 시작점 기록
+                startY = e.touches[0].pageY;
+                startX = e.touches[0].pageX;
+
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
                 if (!isZoomed || this.id === 'countryInput') return;
                 
-                startY = e.touches[0].pageY;
-                startX = e.touches[0].pageX;
                 const currentTime = new Date().getTime();
                 const tapLength = currentTime - lastTap;
                 
                 if (tapLength < 350 && tapLength > 0) {
-                    // 두 번 터치 시에만 동작
+                    // 두 번 터치 시에만 삭제 동작 수행
                     e.preventDefault();
                     this.value = '';
                     if (this.id === 'fixedPrice') preciseKrwValue = 0;
@@ -259,7 +261,15 @@
                 lastTap = currentTime;
             }, { passive: false });
 
-            // 확대 시 입력칸 드래그 이동을 방해하지 않도록 터치 엔드 로직 추가
+            // 입력창 안에서의 터치 이동이 브라우저 화면 이동(상하좌우)을 방해하지 않도록 보정
+            el.addEventListener('touchmove', function(e) {
+                const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
+                // 확대 중일 때 입력창 안에서 움직이는 것을 막지 않음 (상하좌우 드래그 허용)
+                if (isZoomed) {
+                    e.stopPropagation(); 
+                }
+            }, { passive: true });
+
             el.addEventListener('touchend', function(e) {
                 const isZoomed = window.visualViewport && window.visualViewport.scale > 1.01;
                 if (!isZoomed || this.id === 'countryInput') return;
@@ -267,11 +277,13 @@
                 const endY = e.changedTouches[0].pageY;
                 const endX = e.changedTouches[0].pageX;
                 
-                // 터치 후 거의 움직이지 않았을 때(탭)만 브라우저 기본 포커스 차단
-                if (Math.abs(endY - startY) < 5 && Math.abs(endX - startX) < 5) {
-                    e.preventDefault();
+                // 터치 후 손가락이 거의 움직이지 않았을 때(단순 탭)만 포커스 로직 개입
+                // 움직임이 10px 이상이면 드래그로 간주하고 기본 동작을 차단하지 않음
+                if (Math.abs(endY - startY) < 10 && Math.abs(endX - startX) < 10) {
+                    // 탭 동작 시 브라우저 자동 확대를 막기 위해 focus 제어
+                    // 하지만 두 번 터치 중 첫 번째 탭에서는 focus를 일시적으로 허용함
                 }
-            }, { passive: false });
+            }, { passive: true });
         });
     }
 
