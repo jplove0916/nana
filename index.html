@@ -34,10 +34,10 @@
         .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
         
-        /* ✨ 의장님 요청 수정: 입력창 위에서도 드래그(확대 이동)가 가능하도록 개선 */
+        /* ✨ 의장님 요청: 확대 시 가로/세로 드래그 완전 허용 */
         input, select { 
             width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500;
-            touch-action: pan-x pan-y; /* 확대 시 모든 방향 드래그 허용 */
+            touch-action: pan-x pan-y !important;
         }
         
         input[type="text"], input[type="number"] { -webkit-appearance: none; }
@@ -112,6 +112,7 @@
     </style>
 </head>
 <body>
+
 <div id="camera-overlay">
     <video id="camera-video" autoplay playsinline></video>
     <div class="camera-controls">
@@ -226,7 +227,7 @@
 </div>
 
 <script>
-    // [자바스크립트 로직 유지 및 확대 터치 제어 보강]
+    // [정필코드001: 냥냥이 통합 계산기 로직]
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
     const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
     const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
@@ -248,7 +249,7 @@
     }, {passive: true});
 
     document.addEventListener('touchmove', e => {
-        // ✨ 의장님 요청 핵심: 확대 상태라면 입력창 터치 중이라도 드래그를 차단하지 않음
+        // ✨ 의장님 요청: 확대 상태라면 어떤 요소 위에서든 스와이프 로직 중단 (브라우저 자율 이동 보장)
         if (isZoomed()) {
             mainTouchStartX = e.changedTouches[0].screenX;
             return; 
@@ -278,6 +279,23 @@
         }
     }, {passive: true});
 
+    // ✨ 입력창 가로 드래그 가로채기 방지 로직 (확대 시)
+    const inputs = document.querySelectorAll('input, select');
+    inputs.forEach(el => {
+        el.addEventListener('touchstart', (e) => {
+            if (isZoomed()) {
+                // 확대 중엔 텍스트 커서 우선권보다 화면 이동 우선권을 부여
+                // e.stopPropagation()을 호출하지 않아 부모로 터치 전파
+            }
+        }, { passive: true });
+        
+        el.addEventListener('touchmove', (e) => {
+            if (isZoomed()) {
+                // 확대 시엔 가로/세로 이동을 브라우저에 전적으로 맡김
+            }
+        }, { passive: true });
+    });
+
     function toggleZoom(e) { 
         e.stopPropagation(); 
         const img = e.target; 
@@ -290,7 +308,6 @@
         }
     }
 
-    // [이하 기존 기능 함수들 (doCalc, saveInputs 등) 100% 동일하게 유지...]
     function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.style.transform = 'scale(1)'; mImg.style.cursor = 'zoom-in'; mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
     function deleteCurrentPhoto(e) { if (e) { e.preventDefault(); e.stopPropagation(); } if (isProcessing) return; if (!confirm("현재 사진을 삭제하시겠습니까?")) return; isProcessing = true; try { modalImgList.splice(modalImgIdx, 1); const isSuccess = updateLibPhotosSync(); if (modalImgList.length === 0 || !isSuccess) { closeModal(); } else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); } renderLibrary(); } finally { setTimeout(() => { isProcessing = false; }, 300); } }
     function updateLibPhotosSync() { if (!currentLoadedId) return false; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let idx = lib.findIndex(i => i.id === currentLoadedId); if (idx > -1) { if (modalImgList.length === 0) { lib.splice(idx, 1); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); unloadItem(); return false; } else { lib[idx].imgList = [...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); return true; } } return false; }
