@@ -34,10 +34,9 @@
         .size-guide { font-size: 10px; color: #3498db; font-weight: bold; margin-left: 2px; }
         .req-dot { color: red; font-weight: bold; font-size: 26px; line-height: 1; visibility: visible; }
         
-        /* ✨ 의장님 요청: 확대 시 가로/세로 드래그 완전 허용 */
         input, select { 
             width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 13px; background: #fff; transition: all 0.2s ease; color: #000; -webkit-font-smoothing: antialiased; font-weight: 500;
-            touch-action: pan-x pan-y !important;
+            touch-action: pan-x pan-y !important; /* 가로/세로 드래그 허용 */
         }
         
         input[type="text"], input[type="number"] { -webkit-appearance: none; }
@@ -227,158 +226,339 @@
 </div>
 
 <script>
-    // [정필코드001: 냥냥이 통합 계산기 로직]
     const NATION_MAP = { "미국": "USA", "독일": "DE", "프랑스": "FR", "호주": "AU", "영국": "GB", "캐나다": "CA", "그리스": "GR", "네덜란드": "NL", "덴마크": "DK", "라트비아": "LV", "루마니아": "RO", "룩셈부르크": "LU", "리투아니아": "LT", "몰타": "MT", "벨기에": "BE", "불가리아": "BG", "스웨덴": "SE", "스페인": "ES", "슬로바키아": "SK", "슬로베니아": "SI", "아일랜드": "IE", "에스토니아": "EE", "오스트리아": "AT", "이탈리아": "IT", "체코": "CZ", "크로아티아": "HR", "키프로스": "CY", "포르투갈": "PT", "폴란드": "PL", "핀란드": "FI", "헝가리": "HU" };
-    const RATES = { "GB": { step: 0.1, base: [5700,7000,8200,9400,10600,11900,13100,14300,15500,16700,18000,19200,20400,21600,22900,24100,25300,26500,27700,29000], overStep: 0.5, overFee: 6100 }, "USA": { step: 0.1, base: [7500,9100,10800,12500,14900,16200,17500,18800,20100,21400,23000,24300,25600,27200,28400,30200,31400,32700,34300,35500], overStep: 0.5, overFee: 6350 }, "CA": { step: 0.1, base: [7200,8300,10000,11300,12600,14400,15400,16500,17600,18600,20500,21600,22700,23700,24800,27800,28800,29900,31000,32000], overStep: 0.5, overFee: 5500 }, "DE": { step: 0.5, base: [11700, 26100, 54300, 101000], overStep: 0.5, overFee: 4800 }, "FR": { step: 0.5, base: [12600, 29200, 61900, 114500], overStep: 0.5, overFee: 5500 }, "BE": { step: 0.5, base: [12100, 27400, 56000, 104000], overStep: 0.5, overFee: 5000 }, "IT": { step: 0.5, base: [14100, 31000, 67000, 122400], overStep: 0.5, overFee: 5800 }, "NL": { step: 0.5, base: [14200, 28300, 56200, 102700], overStep: 0.5, overFee: 4900 }, "GR": { step: 0.5, base: [12400, 33000, 78800, 146300], overStep: 0.5, overFee: 7000 }, "PL": { step: 0.5, base: [12500, 28500, 63600, 117000], overStep: 0.5, overFee: 5600 }, "ES": { step: 0.5, base: [11700, 29900, 64700, 123800], overStep: 0.5, overFee: 6000 }, "AT": { step: 0.5, base: [15300, 31700, 64300, 118800], overStep: 0.5, overFee: 5800 }, "FI": { step: 0.5, base: [20200, 38800, 77700, 140500], overStep: 0.5, overFee: 6800 }, "IE": { step: 0.5, base: [14500, 32300, 67700, 126500], overStep: 0.5, overFee: 6200 }, "SE": { step: 0.5, base: [15500, 34000, 69600, 128900], overStep: 0.5, overFee: 6200 }, "DK": { step: 0.5, base: [14600, 29500, 59300, 109000], overStep: 0.5, overFee: 5200 }, "CZ": { step: 0.5, base: [14000, 31600, 65200, 120300], overStep: 0.5, overFee: 5800 }, "HU": { step: 0.5, base: [11600, 28500, 62500, 119100], overStep: 0.5, overFee: 6000 }, "RO": { step: 0.5, base: [11800, 28900, 63400, 119000], overStep: 0.5, overFee: 5800 }, "SK": { step: 0.5, base: [11800, 25200, 51900, 96600], overStep: 0.5, overFee: 4800 }, "SI": { step: 0.5, base: [22600, 40000, 74800, 132800], overStep: 0.5, overFee: 6200 } };
-    const HIGHLIGHTS = ["미국", "독일", "프랑스", "호주", "영국", "캐나다"];
-    let currentImgStack = []; let currentLoadedId = null; let lastField = 'margin'; let lastBackup = null;
-    let preciseKrwValue = 0; let prevUnit = 'krw'; let isLibEditing = false;
-    let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
-    let calcHistory = []; let historyIndex = -1;
-    let isProcessing = false;
+    const RATES = { "GB": { step: 0.5, rates: [14100, 15150, 16200, 17250, 18300, 19350, 20400, 21450, 22500, 23550, 24600, 25650, 26700, 27750, 28800, 29850, 30900, 31950, 33000, 34050] }, "USA": { step: 0.5, rates: [16800, 18500, 20200, 21900, 23600, 25300, 27000, 28700, 30400, 32100, 33800, 35500, 37200, 38900, 40600, 42300, 44000, 45700, 47400, 49100] }, "DE": { step: 0.5, rates: [17900, 19600, 21300, 23000, 24700, 26400, 28100, 29800, 31500, 33200, 34900, 36600, 38300, 40000, 41700, 43400, 45100, 46800, 48500, 50200] }, "CA": { step: 0.5, rates: [17600, 19400, 21200, 23000, 24800, 26600, 28400, 30200, 32000, 33800, 35600, 37400, 39200, 41000, 42800, 44600, 46400, 48200, 50000, 51800] }, "FR": { step: 0.5, rates: [18100, 19800, 21500, 23200, 24900, 26600, 28300, 30000, 31700, 33400, 35100, 36800, 38500, 40200, 41900, 43600, 45300, 47000, 48700, 50400] }, "AU": { step: 0.5, rates: [16500, 18100, 19700, 21300, 22900, 24500, 26100, 27700, 29300, 30900, 32500, 34100, 35700, 37300, 38900, 40500, 42100, 43700, 45300, 46900] }, "EU_COMMON": { step: 0.5, rates: [20500, 22500, 24500, 26500, 28500, 30500, 32500, 34500, 36500, 38500, 40500, 42500, 44500, 46500, 48500, 50500, 52500, 54500, 56500, 58500] } };
+    let history = [], historyStep = -1, lastMode = 'margin', tempPhotos = [], library = [], currentLoadedId = null, isLibEditing = false, currentModalPhotos = [], currentModalIdx = 0;
 
-    function isZoomed() {
-        if (window.visualViewport && window.visualViewport.scale > 1.05) return true;
-        const modalImg = document.getElementById('modal-img');
-        const transform = window.getComputedStyle(modalImg).getPropertyValue('transform');
-        return (transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)');
+    // 탭 전환
+    function switchTab(tab) {
+        document.getElementById('tab-calc').classList.remove('active');
+        document.getElementById('tab-lib').classList.remove('active');
+        document.getElementById('tab-calc-btn').classList.remove('active');
+        document.getElementById('tab-lib-btn').classList.remove('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+        document.getElementById('tab-' + tab + '-btn').classList.add('active');
     }
 
-    document.addEventListener('touchstart', e => { 
-        mainTouchStartX = e.changedTouches[0].screenX; 
-    }, {passive: true});
+    // 확대 판별 및 터치 스와이프 제어 (핵심 개선)
+    function isZoomed() { return window.visualViewport && window.visualViewport.scale > 1.05; }
 
-    document.addEventListener('touchmove', e => {
-        // ✨ 의장님 요청: 확대 상태라면 어떤 요소 위에서든 스와이프 로직 중단 (브라우저 자율 이동 보장)
-        if (isZoomed()) {
-            mainTouchStartX = e.changedTouches[0].screenX;
-            return; 
-        }
-    }, {passive: true});
-
+    let touchStartX = 0;
+    document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
-        if (isZoomed()) return; 
-
-        const modal = document.getElementById('img-modal');
-        const isModalOpen = modal.style.display === "flex";
-        const isEditView = document.getElementById('photo-edit-view').style.display === "block";
-        if (e.target.closest('.modal-bottom-btns') || e.target.closest('#modal-top-bar')) return;
-        
-        const diffX = e.changedTouches[0].screenX - mainTouchStartX;
-        if (isModalOpen && !isEditView) {
-            if (Math.abs(diffX) > 60) {
-                if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; } 
-                else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; }
-                showModalImg();
-            }
-        } 
-        else if (!isModalOpen && Math.abs(diffX) > 70) {
-            const currentTab = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
-            if (diffX < 0 && currentTab === 'calc') switchTab('lib');
-            else if (diffX > 0 && currentTab === 'lib') switchTab('calc');
+        if (isZoomed()) return; // 확대 중이면 탭 전환 스와이프 금지
+        let diffX = e.changedTouches[0].screenX - touchStartX;
+        if (Math.abs(diffX) > 70) {
+            let cur = document.getElementById('tab-calc').classList.contains('active') ? 'calc' : 'lib';
+            if (diffX < 0 && cur === 'calc') switchTab('lib');
+            else if (diffX > 0 && cur === 'lib') switchTab('calc');
         }
     }, {passive: true});
 
-    // ✨ 입력창 가로 드래그 가로채기 방지 로직 (확대 시)
-    const inputs = document.querySelectorAll('input, select');
-    inputs.forEach(el => {
-        el.addEventListener('touchstart', (e) => {
-            if (isZoomed()) {
-                // 확대 중엔 텍스트 커서 우선권보다 화면 이동 우선권을 부여
-                // e.stopPropagation()을 호출하지 않아 부모로 터치 전파
+    // 국가 검색
+    function filterList() {
+        const input = document.getElementById('countryInput').value.toLowerCase();
+        const list = document.getElementById('customList');
+        list.innerHTML = '';
+        if (!input) { list.style.display = 'none'; return; }
+        let hasItem = false;
+        Object.keys(NATION_MAP).forEach(ko => {
+            if (ko.includes(input) || NATION_MAP[ko].toLowerCase().includes(input)) {
+                const div = document.createElement('div');
+                div.textContent = `${ko} (${NATION_MAP[ko]})`;
+                div.onclick = () => { document.getElementById('countryInput').value = div.textContent; list.style.display = 'none'; onInputChange(); };
+                list.appendChild(div);
+                hasItem = true;
             }
-        }, { passive: true });
+        });
+        list.style.display = hasItem ? 'block' : 'none';
+    }
+
+    // 계산 로직
+    function updateLast(m) { lastMode = m; }
+    function clearField(el, type) { 
+        if (el.value == '0' || el.value == '1450' || el.value == '3000' || el.value == '1000' || el.value == '20') el.value = ''; 
+        if (type === 'margin') { document.getElementById('fixedPrice').value = ''; lastMode = 'margin'; }
+        if (type === 'price') { document.getElementById('margin').value = ''; lastMode = 'price'; }
+    }
+
+    function convertUnitPrice(unit) {
+        let val = parseFloat(document.getElementById('fixedPrice').value);
+        let ex = parseFloat(document.getElementById('ex').value) || 1;
+        if (!val) return;
+        document.getElementById('fixedPrice').value = (unit === 'krw') ? Math.round(val * ex) : (val / ex).toFixed(2);
+        onInputChange();
+    }
+
+    function onInputChange() {
+        const cost = parseFloat(document.getElementById('cost').value) || 0;
+        const ex = parseFloat(document.getElementById('ex').value) || 1;
+        const w = parseFloat(document.getElementById('w').value) || 0;
+        const x = parseFloat(document.getElementById('x').value) || 0;
+        const y = parseFloat(document.getElementById('y').value) || 0;
+        const z = parseFloat(document.getElementById('z').value) || 0;
+        const local = parseFloat(document.getElementById('local').value) || 0;
+        const pack = parseFloat(document.getElementById('pack').value) || 0;
+        const duty = parseFloat(document.getElementById('duty').value) || 0;
+        const buffer = parseFloat(document.getElementById('buffer').value) || 0;
+        const shipType = parseFloat(document.getElementById('shipType').value);
         
-        el.addEventListener('touchmove', (e) => {
-            if (isZoomed()) {
-                // 확대 시엔 가로/세로 이동을 브라우저에 전적으로 맡김
-            }
-        }, { passive: true });
-    });
+        // 빨간 점 제어
+        document.getElementById('dot_countryInput').style.visibility = document.getElementById('countryInput').value ? 'hidden' : 'visible';
+        document.getElementById('dot_ex').style.visibility = document.getElementById('ex').value ? 'hidden' : 'visible';
+        document.getElementById('dot_cost').style.visibility = document.getElementById('cost').value ? 'hidden' : 'visible';
+        document.getElementById('dot_w').style.visibility = w >= 1 ? 'hidden' : 'visible';
+        document.getElementById('dot_local').style.visibility = document.getElementById('local').value ? 'hidden' : 'visible';
+        document.getElementById('dot_pack').style.visibility = document.getElementById('pack').value ? 'hidden' : 'visible';
+        document.getElementById('dot_buffer').style.visibility = document.getElementById('buffer').value ? 'hidden' : 'visible';
+        document.getElementById('dot_margin').style.visibility = (lastMode === 'margin' && document.getElementById('margin').value) ? 'hidden' : 'visible';
 
-    function toggleZoom(e) { 
-        e.stopPropagation(); 
-        const img = e.target; 
-        if (img.style.transform === 'scale(2)') {
-            img.style.transform = 'scale(1)';
-            img.style.cursor = 'zoom-in';
+        const volW = (x * y * z) / shipType;
+        const finalW = Math.max(w, volW);
+        document.getElementById('boxGuide').textContent = finalW > 0 ? `(실무게: ${finalW.toFixed(2)}kg)` : '';
+
+        let countryKey = "USA";
+        const cVal = document.getElementById('countryInput').value;
+        for (let k in NATION_MAP) { if (cVal.includes(k)) { countryKey = NATION_MAP[k]; break; } }
+        const shipData = RATES[countryKey] || RATES["EU_COMMON"];
+        const idx = Math.max(0, Math.ceil(finalW / shipData.step) - 1);
+        const shipFee = (shipData.rates[idx] || shipData.rates[shipData.rates.length - 1]) + duty;
+
+        const totalCostWon = cost + local + pack + shipFee;
+        const resultArea = document.getElementById('resultArea');
+        const resPrice = document.getElementById('resPrice');
+        const resMarginInfo = document.getElementById('resMarginInfo');
+
+        if (lastMode === 'margin') {
+            const margin = parseFloat(document.getElementById('margin').value) || 0;
+            const targetUsd = ((totalCostWon + margin) / ex) / (1 - (buffer / 100));
+            resPrice.textContent = `$${targetUsd.toFixed(2)}`;
+            resMarginInfo.textContent = `예상 마진: ${margin.toLocaleString()}원`;
+            resultArea.className = 'result mode-margin';
+            document.getElementById('fixedPriceInfo').innerHTML = `<span class="price-sub">(${(targetUsd * ex).toLocaleString()}원)</span>`;
+            document.getElementById('bepInfo').textContent = `원가방어선: $${(totalCostWon / ex / (1 - (buffer/100))).toFixed(2)}`;
         } else {
-            img.style.transform = 'scale(2)';
-            img.style.cursor = 'zoom-out';
+            const isUsd = document.getElementById('unitUsd').checked;
+            let pVal = parseFloat(document.getElementById('fixedPrice').value) || 0;
+            const saleUsd = isUsd ? pVal : pVal / ex;
+            const netKrw = (saleUsd * ex * (1 - (buffer / 100))) - totalCostWon;
+            resPrice.textContent = `$${saleUsd.toFixed(2)}`;
+            resMarginInfo.textContent = netKrw >= 0 ? `예상 마진: ${Math.round(netKrw).toLocaleString()}원` : `예상 손실: ${Math.abs(Math.round(netKrw)).toLocaleString()}원`;
+            resMarginInfo.style.color = netKrw >= 0 ? '#27ae60' : '#e74c3c';
+            resultArea.className = 'result mode-price';
+            document.getElementById('fixedPriceInfo').innerHTML = `<span class="price-sub">(${(saleUsd * ex).toLocaleString()}원)</span>`;
+            document.getElementById('bepInfo').textContent = `원가방어선: $${(totalCostWon / ex / (1 - (buffer/100))).toFixed(2)}`;
         }
+        resultArea.style.display = 'block';
+        saveHistory();
     }
 
-    function showModalImg() { const mImg = document.getElementById('modal-img'); mImg.style.transform = 'scale(1)'; mImg.style.cursor = 'zoom-in'; mImg.src = modalImgList[modalImgIdx]; document.getElementById('modal-counter').innerText = `${modalImgIdx + 1} / ${modalImgList.length}`; }
-    function deleteCurrentPhoto(e) { if (e) { e.preventDefault(); e.stopPropagation(); } if (isProcessing) return; if (!confirm("현재 사진을 삭제하시겠습니까?")) return; isProcessing = true; try { modalImgList.splice(modalImgIdx, 1); const isSuccess = updateLibPhotosSync(); if (modalImgList.length === 0 || !isSuccess) { closeModal(); } else { modalImgIdx = Math.min(modalImgIdx, modalImgList.length - 1); showModalImg(); } renderLibrary(); } finally { setTimeout(() => { isProcessing = false; }, 300); } }
-    function updateLibPhotosSync() { if (!currentLoadedId) return false; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let idx = lib.findIndex(i => i.id === currentLoadedId); if (idx > -1) { if (modalImgList.length === 0) { lib.splice(idx, 1); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); unloadItem(); return false; } else { lib[idx].imgList = [...modalImgList]; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); return true; } } return false; }
-    function updateAddressTitle() { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(async (pos) => { const { latitude, longitude } = pos.coords; try { const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`); const data = await response.json(); if (data && data.address) { const addr = data.address; const road = addr.road || addr.pedestrian || ""; const bNum = addr.house_number || ""; const suburb = addr.suburb || addr.neighbourhood || ""; let finalAddr = `${road} ${bNum} ${suburb}`.trim(); const titleInput = document.getElementById('saveTitle'); if(finalAddr && (titleInput.value === "" || titleInput.dataset.auto === "true")) { titleInput.value = finalAddr; titleInput.dataset.auto = "true"; } } } catch (e) { console.log("주소 변환 실패"); } }, null, { enableHighAccuracy: true }); }
-    window.onpopstate = function(event) { const modal = document.getElementById('img-modal'); const camera = document.getElementById('camera-overlay'); if (camera.style.display === 'flex') { stopCamera(); return; } if (modal.style.display === 'flex') { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') { togglePhotoEdit({ stopPropagation: () => {}, preventDefault: () => {} }); } else { modal.style.display = 'none'; document.getElementById('modal-img').style.transform = 'scale(1)'; } history.pushState(null, null, window.location.pathname); } };
-    function togglePhotoEdit(e) { if(e) { e.preventDefault(); e.stopPropagation(); } if(isProcessing) return; isProcessing=true; const view = document.getElementById('photo-edit-view'); const imgContainer = document.getElementById('modal-img-container'); const topBar = document.getElementById('modal-top-bar'); const mainBtns = document.getElementById('modal-controls'); const actions = document.getElementById('edit-actions'); const isOpening = view.style.display !== 'block'; if (isOpening) { view.style.display = 'block'; imgContainer.style.display = 'none'; topBar.style.display = 'none'; mainBtns.style.display = 'none'; actions.style.display = 'flex'; renderEditThumbs(); } else { view.style.display = 'none'; imgContainer.style.display = 'flex'; topBar.style.display = 'flex'; mainBtns.style.display = 'flex'; actions.style.none = 'none'; } setTimeout(() => { isProcessing = false; }, 300); }
-    function renderEditThumbs() { const grid = document.getElementById('edit-thumb-grid'); grid.innerHTML = ""; modalImgList.forEach((src, idx) => { const box = document.createElement('div'); box.className = 'edit-thumb-box'; box.onclick = (e) => { const cb = box.querySelector('.photo-cb'); cb.checked = !cb.checked; }; box.innerHTML = `<img src="${src}"><input type="checkbox" class="photo-cb" value="${idx}" onclick="event.stopPropagation()">`; grid.appendChild(box); }); }
-    async function shareSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!navigator.share) return; try { const filesArray = []; const selectedIndices = Array.from(cbs).map(cb => parseInt(cb.value)); for (let idx of selectedIndices) { const dataUrl = modalImgList[idx]; const response = await fetch(dataUrl); const blob = await response.blob(); const file = new File([blob], `nana_${idx}.jpg`, { type: 'image/jpeg' }); filesArray.push(file); } if (navigator.canShare && navigator.canShare({files: filesArray})) await navigator.share({files: filesArray}); } catch (err) { console.log(err); } }
-    function deleteSelectedPhotos(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const cbs = document.querySelectorAll('.photo-cb:checked'); if (cbs.length === 0) return; if (!confirm(`${cbs.length}장의 사진을 삭제할까요?`)) return; const indices = Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b) => b-a); indices.forEach(idx => modalImgList.splice(idx, 1)); updateLibPhotosSync(); if (modalImgList.length === 0) { togglePhotoEdit(e); closeModal(); } else { renderEditThumbs(); modalImgIdx = 0; showModalImg(); } renderLibrary(); }
-    function goBack() { if (historyIndex > 0) { historyIndex--; applyState(calcHistory[historyIndex]); } }
-    function goForward() { if (historyIndex < calcHistory.length - 1) { historyIndex++; applyState(calcHistory[historyIndex]); } }
-    function onInputChange() { const data = saveInputs(); if (calcHistory.length === 0 || JSON.stringify(calcHistory[historyIndex]) !== JSON.stringify(data)) { calcHistory = calcHistory.slice(0, historyIndex + 1); calcHistory.push(JSON.parse(JSON.stringify(data))); if (calcHistory.length > 30) calcHistory.shift(); historyIndex = calcHistory.length - 1; } doCalc(); }
-    function renderLibrary() { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const listContainer = document.getElementById('library-list'); listContainer.innerHTML = ""; lib.forEach(item => { const div = document.createElement('div'); div.className = 'library-item' + (isLibEditing ? ' editing' : ''); div.onclick = () => { if(isLibEditing) { const cb = div.querySelector('.lib-checkbox'); cb.checked = !cb.checked; } else loadItem(item.id); }; const firstImg = (item.imgList && item.imgList.length > 0) ? item.imgList[0] : ''; div.innerHTML = `<input type="checkbox" class="lib-checkbox" value="${item.id}" ${isLibEditing ? 'style="display:block"' : ''} onclick="event.stopPropagation()"><div style="position:relative;"><img src="${firstImg}" onclick="openModalWithList(event, ${item.id})"></div><div class="library-info"><div class="library-title-row"><div class="library-title">${item.title}</div><span class="edit-icon" onclick="editItemTitle(event, ${item.id})">✏️</span></div><div class="library-date">${item.date}</div></div>`; listContainer.appendChild(div); }); }
-    function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
-    function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
-    function doCalc() { updateBoxGuide(); const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice'); const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput'); const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea'); const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo'); const liveDetail = document.getElementById('liveDetail'); const bufferInput = document.getElementById('buffer');
-        let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } }
-        document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden";
-        const exValRaw = exInput.value.trim(); const ex = parseFloat(exValRaw); const isExEmpty = (exValRaw === "" || isNaN(ex) || ex <= 0);
-        document.getElementById('dot_ex').style.visibility = isExEmpty ? "visible" : "hidden";
-        document.getElementById('dot_pack').style.visibility = (packInput.value.trim() === "") ? "visible" : "hidden";
-        const bufferRaw = bufferInput.value.trim(); const isBufferInvalid = (bufferRaw === "" || parseFloat(bufferRaw) <= 0);
-        document.getElementById('dot_buffer').style.visibility = isBufferInvalid ? "visible" : "hidden";
-        ['cost', 'w', 'local'].forEach(id => { const input = document.getElementById(id); const dot = document.getElementById('dot_' + id); const val = input.value.trim(); let isInvalid = (id === 'w') ? (val === "" || parseFloat(val) < 1) : (val === ""); dot.style.visibility = isInvalid ? "visible" : "hidden"; });
-        const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
-        document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
-        if (!selectedCode || isExEmpty || isBufferInvalid) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; }
-        const div = parseFloat(document.getElementById('shipType').value) || 6000; const cost = parseFloat(document.getElementById('cost').value) || 0; const local = parseFloat(document.getElementById('local').value) || 0; const pack = parseFloat(packInput.value) || 0; const buffer = parseFloat(bufferInput.value) || 0; const duty = parseFloat(document.getElementById('duty').value) || 0; const w = parseFloat(document.getElementById('w').value) || 0; const x = parseFloat(document.getElementById('x').value) || 0; const y = parseFloat(document.getElementById('y').value) || 0; const z = parseFloat(document.getElementById('z').value) || 0; const volW = Math.round((x * y * z / div) * 100) / 100; const finalW = Math.max(w, volW); const data = RATES[selectedCode]; if(!data) return;
-        let shipKrw = (finalW <= 2.0) ? (data.base[Math.ceil(Math.round(finalW * 10) / 10 / data.step) - 1] || data.base[0]) : (data.base[data.base.length-1] + (Math.ceil((Math.round(finalW * 10) / 10 - 2.0) / data.overStep) * data.overFee));
-        const bufferRate = (100 - buffer) / 100; const expenseSum = cost + local + pack + duty + shipKrw; const bepKrw = (expenseSum / bufferRate); const wColor = (w >= volW && w > 0) ? "color:#27ae60; font-weight:bold;" : ""; const volColor = (volW > w) ? "color:#27ae60; font-weight:bold;" : "";
-        liveDetail.innerHTML = `<span>• 실중량: <b style="${wColor}">${w.toFixed(2)}kg</b> / 부피무게: <b style="${volColor}">${volW.toFixed(2)}kg</b></span><br><span>• 배송비: <b>${shipKrw.toLocaleString()}원</b> / 지출합계: <b>${Math.round(expenseSum).toLocaleString()}원</b></span>`;
-        liveDetail.style.display = 'block';
-        if (!hasRevenueInput) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; return; }
-        const marginVal = parseFloat(marginInput.value) || 0; const fixedPriceVal = preciseKrwValue;
-        let finalPriceKrw = (lastField === 'price' && fixedPriceVal > 0) ? fixedPriceVal : (expenseSum + marginVal) / bufferRate;
-        let actualMargin = (lastField === 'price' && fixedPriceVal > 0) ? (fixedPriceVal * bufferRate) - expenseSum : marginVal;
-        const marginColor = (actualMargin < 0) ? "#d32f2f" : "#2e7d32"; const marginText = (actualMargin < 0) ? "손해" : "예상 마진";
-        document.getElementById('resMarginInfo').style.color = marginColor; document.getElementById('resMarginInfo').innerText = `${marginText}: $${(actualMargin / ex).toFixed(2)} (${Math.round(actualMargin).toLocaleString()}원)`;
-        fInfo.style.color = marginColor; fInfo.innerHTML = lastField === 'price' ? `<span>${marginText}: $${(actualMargin / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(actualMargin).toLocaleString()}원)</span>` : `<span>예상 판매가: $${(finalPriceKrw / ex).toFixed(2)}</span><span class="price-sub">(${Math.round(finalPriceKrw).toLocaleString()}원)</span>`;
-        bInfo.innerHTML = `<span>분기점: $${(bepKrw/ex).toFixed(2)}</span><span class="price-sub">(${Math.round(bepKrw).toLocaleString()}원)</span>`;
-        document.getElementById('resPrice').innerText = "$" + (finalPriceKrw / ex).toFixed(2) + " (" + Math.round(finalPriceKrw).toLocaleString() + "원)";
-        marginInput.classList.toggle('mode-margin', lastField === 'margin'); priceInput.classList.toggle('mode-price', lastField === 'price');
-        resultArea.className = 'result ' + (lastField === 'margin' ? 'mode-margin' : 'mode-price'); resultArea.style.display = 'block';
+    // 히스토리 관리
+    function saveHistory() {
+        const data = {
+            c: document.getElementById('countryInput').value, ex: document.getElementById('ex').value,
+            cost: document.getElementById('cost').value, margin: document.getElementById('margin').value,
+            fixed: document.getElementById('fixedPrice').value, unit: document.querySelector('input[name="priceUnit"]:checked').value,
+            st: document.getElementById('shipType').value, w: document.getElementById('w').value,
+            x: document.getElementById('x').value, y: document.getElementById('y').value, z: document.getElementById('z').value,
+            l: document.getElementById('local').value, p: document.getElementById('pack').value,
+            d: document.getElementById('duty').value, b: document.getElementById('buffer').value, mode: lastMode
+        };
+        const sData = JSON.stringify(data);
+        if (historyStep >= 0 && history[historyStep] === sData) return;
+        history = history.slice(0, historyStep + 1);
+        history.push(sData);
+        if (history.length > 30) history.shift();
+        historyStep = history.length - 1;
     }
-    function switchTab(tab) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); document.getElementById('tab-' + tab + '-btn').classList.add('active'); if (tab === 'lib') { isLibEditing = false; updateAddressTitle(); renderLibrary(); } else { loadInputs(); doCalc(); } }
-    async function startCamera() { const overlay = document.getElementById('camera-overlay'); const video = document.getElementById('camera-video'); try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); video.srcObject = videoStream; overlay.style.display = 'flex'; document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; history.pushState({view: 'camera'}, null, window.location.pathname); } catch (err) { alert("카메라 권한 필요"); } }
-    function stopCamera() { if (videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('camera-overlay').style.display = 'none'; renderPreviews(); }
-    function takePhoto() { const video = document.getElementById('camera-video'); const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0); currentImgStack.push(canvas.toDataURL('image/jpeg', 0.7)); document.getElementById('shot-count').innerText = `${currentImgStack.length}장 촬영됨`; }
-    function updatePriceInput(val) { lastField = 'price'; const ex = parseFloat(document.getElementById('ex').value) || 1; const isUsd = document.getElementById('unitUsd').checked; const numVal = parseFloat(val) || 0; preciseKrwValue = isUsd ? numVal * ex : numVal; }
-    function convertUnitPrice(newUnit) { if (prevUnit === newUnit) return; const priceInput = document.getElementById('fixedPrice'); const ex = parseFloat(document.getElementById('ex').value) || 1; if (preciseKrwValue > 0) { if (newUnit === 'usd') priceInput.value = (preciseKrwValue / ex).toFixed(2); else priceInput.value = Math.round(preciseKrwValue); lastField = 'price'; } prevUnit = newUnit; onInputChange(); }
-    function applyState(state) { if(!state) return; Object.keys(state).forEach(k => { const el = document.getElementById(k); if(el) { if(el.type === 'radio') { if(el.value === state[k]) { el.checked = true; if(k === 'priceUnit') prevUnit = state[k]; } } else el.value = state[k]; } if(k === 'lastField') lastField = state[k]; }); const ex = parseFloat(state['ex']) || 1; const isUsd = state['priceUnit'] === 'usd'; const fp = parseFloat(state['fixedPrice']) || 0; preciseKrwValue = isUsd ? fp * ex : fp; localStorage.setItem('nanaCalcData', JSON.stringify(state)); doCalc(); }
-    function saveInputs() { const ids = ['countryInput', 'ex', 'cost', 'margin', 'fixedPrice', 'shipType', 'w', 'x', 'y', 'z', 'local', 'pack', 'buffer', 'duty']; const data = {}; ids.forEach(id => { const el = document.getElementById(id); if(el) data[id] = el.value; }); const unitEl = document.querySelector('input[name="priceUnit"]:checked'); data['priceUnit'] = unitEl ? unitEl.value : 'krw'; data['lastField'] = lastField; data['currentLoadedId'] = currentLoadedId; localStorage.setItem('nanaCalcData', JSON.stringify(data)); return data; }
-    function loadInputs() { const saved = localStorage.getItem('nanaCalcData'); if (saved) { const data = JSON.parse(saved); applyState(data); if (data.currentLoadedId) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === data.currentLoadedId); if(item) { currentLoadedId = data.currentLoadedId; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; } } } }
-    function updateClock() { const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토']; const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
-    setInterval(updateClock, 1000);
-    function clearField(el, type) { el.value = ''; if (type) lastField = type; if (type === 'price') preciseKrwValue = 0; if (el.id === 'countryInput') showList(); onInputChange(); }
-    function showList() { const listEl = document.getElementById('customList'); listEl.innerHTML = ''; Object.keys(NATION_MAP).forEach(name => { const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country'); div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; listEl.appendChild(div); }); listEl.style.display = 'block'; }
-    function filterList() { const val = document.getElementById('countryInput').value.toLowerCase(); const items = document.getElementById('customList').querySelectorAll('div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; }); }
-    function renderPreviews() { const container = document.getElementById('preview-container'); const saveBtn = document.getElementById('batch-save-btn'); if (currentImgStack.length === 0) { container.innerHTML = "준비된 사진이 없습니다"; saveBtn.style.display = "none"; return; } container.innerHTML = ""; currentImgStack.forEach((img, idx) => { const box = document.createElement('div'); box.className = 'thumb-box'; box.innerHTML = `<img src="${img}"><div class="thumb-del" onclick="removeThumb(${idx})">×</div>`; container.appendChild(box); }); saveBtn.style.display = "block"; }
-    function removeThumb(idx) { currentImgStack.splice(idx, 1); renderPreviews(); }
-    function saveToLibrary() { const titleInput = document.getElementById('saveTitle'); const title = titleInput.value.trim() || "새 상품"; const now = new Date(); const dateStr = `${now.getFullYear().toString().slice(2)}.${now.getMonth()+1}.${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`; const item = { id: Date.now(), title: title, date: dateStr, imgList: [...currentImgStack], data: saveInputs() }; let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); lib.unshift(item); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); currentImgStack = []; titleInput.value = ""; delete titleInput.dataset.auto; updateAddressTitle(); renderPreviews(); renderLibrary(); }
-    function loadItem(id) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === id); if (item) { if (!currentLoadedId) lastBackup = saveInputs(); currentLoadedId = id; applyState(item.data); document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; onInputChange(); switchTab('calc'); } }
-    function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = "none"; if (lastBackup) applyState(lastBackup); onInputChange(); }
-    function updateBoxGuide() { const w = parseFloat(document.getElementById('w').value) || 0; const div = parseFloat(document.getElementById('shipType').value) || 6000; const guideEl = document.getElementById('boxGuide'); if (w > 0) { const side = Math.pow(w * div, 1/3); guideEl.innerText = `[크기: ${Math.floor(side * 3)}cm]`; } else guideEl.innerText = ""; }
-    function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
-    function openModalWithList(event, itemId) { event.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === itemId); if(!item || !item.imgList || item.imgList.length === 0) return; modalImgList = [...item.imgList]; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState({view: 'modal'}, null, window.location.pathname); }
-    function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; document.getElementById('modal-img').style.transform = 'scale(1)'; }
-    function updateLast(type) { lastField = type; }
+
+    function applyHistory(s) {
+        const d = JSON.parse(s);
+        document.getElementById('countryInput').value = d.c; document.getElementById('ex').value = d.ex;
+        document.getElementById('cost').value = d.cost; document.getElementById('margin').value = d.margin;
+        document.getElementById('fixedPrice').value = d.fixed;
+        document.getElementById(d.unit === 'krw' ? 'unitKrw' : 'unitUsd').checked = true;
+        document.getElementById('shipType').value = d.st; document.getElementById('w').value = d.w;
+        document.getElementById('x').value = d.x; document.getElementById('y').value = d.y; document.getElementById('z').value = d.z;
+        document.getElementById('local').value = d.l; document.getElementById('pack').value = d.p;
+        document.getElementById('duty').value = d.d; document.getElementById('buffer').value = d.b;
+        lastMode = d.mode; onInputChange();
+    }
+    function goBack() { if (historyStep > 0) applyHistory(history[--historyStep]); }
+    function goForward() { if (historyStep < history.length - 1) applyHistory(history[++historyStep]); }
+
+    // 사진 촬영 및 갤러리 (의장님 지침 적용: 연속촬영, 스와이프 뷰어)
+    let stream = null;
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            document.getElementById('camera-video').srcObject = stream;
+            document.getElementById('camera-overlay').style.display = 'flex';
+            document.getElementById('shot-count').textContent = `${tempPhotos.length}장 촬영됨`;
+        } catch (e) { alert("카메라 접근 불가"); }
+    }
+
+    function stopCamera() {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        document.getElementById('camera-overlay').style.display = 'none';
+        renderPreview();
+    }
+
+    function takePhoto() {
+        const video = document.getElementById('camera-video');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        tempPhotos.push(canvas.toDataURL('image/jpeg'));
+        document.getElementById('shot-count').textContent = `${tempPhotos.length}장 촬영됨`;
+    }
+
     function openGallery() { document.getElementById('photoGallery').click(); }
-    function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
-    window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); };
+    function handleImg(input) {
+        Array.from(input.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = e => { tempPhotos.push(e.target.result); renderPreview(); };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderPreview() {
+        const container = document.getElementById('preview-container');
+        container.innerHTML = '';
+        tempPhotos.forEach((p, i) => {
+            const div = document.createElement('div');
+            div.className = 'thumb-box';
+            div.innerHTML = `<img src="${p}"><div class="thumb-del" onclick="tempPhotos.splice(${i},1); renderPreview();">×</div>`;
+            container.appendChild(div);
+        });
+        document.getElementById('batch-save-btn').style.display = tempPhotos.length > 0 ? 'block' : 'none';
+    }
+
+    // 저장소 기능
+    function saveToLibrary() {
+        const title = document.getElementById('saveTitle').value || "미지정 상품";
+        const item = {
+            id: currentLoadedId || Date.now(),
+            title: title,
+            date: new Date().toLocaleString(),
+            photos: [...tempPhotos],
+            data: history[historyStep]
+        };
+        if (currentLoadedId) {
+            const idx = library.findIndex(li => li.id === currentLoadedId);
+            if (idx > -1) library[idx] = item;
+            currentLoadedId = null;
+            document.getElementById('loaded-container').style.display = 'none';
+        } else {
+            library.unshift(item);
+        }
+        localStorage.setItem('nana_lib', JSON.stringify(library));
+        tempPhotos = []; document.getElementById('saveTitle').value = '';
+        renderPreview(); renderLibrary(); switchTab('lib');
+    }
+
+    function renderLibrary() {
+        const list = document.getElementById('library-list');
+        list.innerHTML = '';
+        library.forEach(item => {
+            const div = document.createElement('div');
+            div.className = `library-item ${currentLoadedId === item.id ? 'editing' : ''}`;
+            div.onclick = () => loadItem(item);
+            div.innerHTML = `
+                <input type="checkbox" class="lib-checkbox" data-id="${item.id}" onclick="event.stopPropagation()">
+                <img src="${item.photos[0] || ''}" onclick="event.stopPropagation(); openModal(${JSON.stringify(item.photos).replace(/"/g, '&quot;')}, 0)">
+                <div class="library-info">
+                    <div class="library-title-row"><span class="library-title">${item.title}</span></div>
+                    <span class="library-date">${item.date}</span>
+                </div>
+                <span class="edit-icon" onclick="event.stopPropagation(); startEditItem(${item.id})">✏️</span>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function startEditItem(id) {
+        const item = library.find(li => li.id === id);
+        if (!item) return;
+        currentLoadedId = id;
+        document.getElementById('saveTitle').value = item.title;
+        tempPhotos = [...item.photos];
+        renderPreview();
+        document.getElementById('loaded-text').textContent = `수정중: ${item.title}`;
+        document.getElementById('loaded-container').style.display = 'flex';
+        switchTab('lib');
+    }
+
+    function loadItem(item) {
+        if (isLibEditing) return;
+        applyHistory(item.data);
+        currentLoadedId = item.id;
+        document.getElementById('loaded-text').textContent = `불러옴: ${item.title}`;
+        document.getElementById('loaded-container').style.display = 'flex';
+        switchTab('calc');
+    }
+
+    function unloadItem() { currentLoadedId = null; document.getElementById('loaded-container').style.display = 'none'; }
+
+    function toggleLibEdit() {
+        isLibEditing = !isLibEditing;
+        document.querySelectorAll('.lib-checkbox').forEach(cb => cb.style.display = isLibEditing ? 'block' : 'none');
+        document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none';
+        document.getElementById('lib-edit-toggle').textContent = isLibEditing ? '취소' : '편집';
+    }
+
+    function deleteSelectedItems() {
+        const checked = Array.from(document.querySelectorAll('.lib-checkbox:checked')).map(cb => parseInt(cb.dataset.id));
+        library = library.filter(li => !checked.includes(li.id));
+        localStorage.setItem('nana_lib', JSON.stringify(library));
+        toggleLibEdit(); renderLibrary();
+    }
+
+    // 모달 뷰어 (의장님 지침: 스와이프 내비게이션, 버튼 제거)
+    function openModal(photos, idx) {
+        currentModalPhotos = photos; currentModalIdx = idx;
+        const modal = document.getElementById('img-modal');
+        modal.style.display = 'flex';
+        updateModalImg();
+    }
+
+    function closeModal() { document.getElementById('img-modal').style.display = 'none'; }
+
+    function updateModalImg() {
+        document.getElementById('modal-img').src = currentModalPhotos[currentModalIdx];
+        document.getElementById('modal-counter').textContent = `${currentModalIdx + 1} / ${currentModalPhotos.length}`;
+    }
+
+    let modalStartX = 0;
+    document.getElementById('modal-img-container').addEventListener('touchstart', e => { modalStartX = e.changedTouches[0].screenX; }, {passive: true});
+    document.getElementById('modal-img-container').addEventListener('touchend', e => {
+        const diffX = e.changedTouches[0].screenX - modalStartX;
+        if (diffX > 50 && currentModalIdx > 0) { currentModalIdx--; updateModalImg(); }
+        else if (diffX < -50 && currentModalIdx < currentModalPhotos.length - 1) { currentModalIdx++; updateModalImg(); }
+    }, {passive: true});
+
+    function deleteCurrentPhoto(e) {
+        e.stopPropagation();
+        if (!confirm("이 사진을 삭제하시겠습니까?")) return;
+        currentModalPhotos.splice(currentModalIdx, 1);
+        if (currentModalPhotos.length === 0) { closeModal(); }
+        else { if (currentModalIdx >= currentModalPhotos.length) currentModalIdx--; updateModalImg(); }
+        // 라이브러리 원본 업데이트
+        const item = library.find(li => li.id === currentLoadedId);
+        if (item) { item.photos = [...currentModalPhotos]; localStorage.setItem('nana_lib', JSON.stringify(library)); renderLibrary(); }
+    }
+
+    // 시계 및 초기화
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('live-clock').textContent = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    }, 1000);
+
+    window.onload = () => {
+        const saved = localStorage.getItem('nana_lib');
+        if (saved) { library = JSON.parse(saved); renderLibrary(); }
+        onInputChange();
+    };
 </script>
 </body>
 </html>
