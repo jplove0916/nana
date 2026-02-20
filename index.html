@@ -231,7 +231,6 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    /* [스와이프 즉각 반응 및 확대 감지 해결 로직] */
     function deleteCurrentPhoto(e) { 
         if (e) { e.preventDefault(); e.stopPropagation(); }
         if (isProcessing) return;
@@ -276,7 +275,7 @@
     
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     
-    /* [수정 요청: 확대 시 스와이프 방지 적용] */
+    /* [수정 지점: 정밀한 확대 감지 및 스와이프 제어] */
     document.addEventListener('touchend', e => {
         const diffX = e.changedTouches[0].screenX - mainTouchStartX;
         const modal = document.getElementById('img-modal');
@@ -284,11 +283,20 @@
         const isEditView = document.getElementById('photo-edit-view').style.display === "block";
         
         const modalImg = document.getElementById('modal-img');
-        const isZoomed = modalImg && modalImg.style.transform === 'scale(2)';
+        let isZoomed = false;
+        
+        if (modalImg && isModalOpen) {
+            const style = window.getComputedStyle(modalImg);
+            const transform = style.getPropertyValue('transform');
+            if (transform && transform !== 'none') {
+                const values = transform.split('(')[1].split(')')[0].split(',');
+                const scale = parseFloat(values[0]);
+                if (scale > 1.1) isZoomed = true; 
+            }
+        }
 
         if (e.target.closest('.modal-bottom-btns')) return;
         
-        // 확대된 상태(isZoomed)일 때는 스와이프를 막음
         if (isModalOpen && !isEditView && !isZoomed && Math.abs(diffX) > 60) {
             if (diffX < 0) { modalImgIdx = (modalImgIdx + 1) % modalImgList.length; showModalImg(); } 
             else { modalImgIdx = (modalImgIdx - 1 + modalImgList.length) % modalImgList.length; showModalImg(); }
@@ -310,7 +318,6 @@
     function toggleLibEdit() { isLibEditing = !isLibEditing; document.getElementById('lib-edit-toggle').innerText = isLibEditing ? '완료' : '편집'; document.getElementById('lib-batch-del').style.display = isLibEditing ? 'block' : 'none'; renderLibrary(); }
     function deleteSelectedItems() { const cbs = document.querySelectorAll('.lib-checkbox:checked'); if (cbs.length === 0) return; if (confirm(`${cbs.length}개 항목을 삭제하시겠습니까?`)) { let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const idsToDelete = Array.from(cbs).map(cb => parseInt(cb.value)); lib = lib.filter(i => !idsToDelete.includes(i.id)); localStorage.setItem('nanaLibrary', JSON.stringify(lib)); if (idsToDelete.includes(currentLoadedId)) unloadItem(); toggleLibEdit(); } }
     
-    /* [수정 요청: 수수료 버퍼 필수 적용 및 로직 유지] */
     function doCalc() { updateBoxGuide(); const marginInput = document.getElementById('margin'); const priceInput = document.getElementById('fixedPrice'); const exInput = document.getElementById('ex'); const countryInput = document.getElementById('countryInput'); const packInput = document.getElementById('pack'); const resultArea = document.getElementById('resultArea'); const fInfo = document.getElementById('fixedPriceInfo'); const bInfo = document.getElementById('bepInfo'); const liveDetail = document.getElementById('liveDetail'); const bufferInput = document.getElementById('buffer');
         let selectedCode = ""; for (let key in NATION_MAP) { if (countryInput.value.includes(key)) { selectedCode = NATION_MAP[key]; break; } }
         document.getElementById('dot_countryInput').style.visibility = !selectedCode ? "visible" : "hidden";
@@ -325,7 +332,6 @@
         const hasRevenueInput = (marginInput.value.trim() !== "" || priceInput.value.trim() !== "");
         document.getElementById('dot_margin').style.visibility = !hasRevenueInput ? "visible" : "hidden";
         
-        // 버퍼가 없으면 계산 결과 중단
         if (!selectedCode || isExEmpty || isBufferInvalid) { resultArea.style.display = 'none'; fInfo.innerHTML = ''; bInfo.innerHTML = ''; liveDetail.style.display = 'none'; return; }
         
         const div = parseFloat(document.getElementById('shipType').value) || 6000; const cost = parseFloat(document.getElementById('cost').value) || 0; const local = parseFloat(document.getElementById('local').value) || 0; const pack = parseFloat(packInput.value) || 0; const buffer = parseFloat(bufferInput.value) || 0; const duty = parseFloat(document.getElementById('duty').value) || 0; const w = parseFloat(document.getElementById('w').value) || 0; const x = parseFloat(document.getElementById('x').value) || 0; const y = parseFloat(document.getElementById('y').value) || 0; const z = parseFloat(document.getElementById('z').value) || 0; const volW = Math.round((x * y * z / div) * 100) / 100; const finalW = Math.max(w, volW); const data = RATES[selectedCode]; if(!data) return;
