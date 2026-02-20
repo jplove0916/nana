@@ -230,43 +230,48 @@
     let modalImgIdx = 0; let modalImgList = []; let videoStream = null; let mainTouchStartX = 0;
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
-    let lastTapTime = 0; // 더블 탭 감지용
+    let lastTapTime = 0;
 
-    /* [의장님 지시: 확대 감지 및 터치 엔진 통합] */
+    /* [의장님 지시: 확대 감지 및 터치 삭제 엔진 통합] */
     function isZoomed() {
         if (window.visualViewport && window.visualViewport.scale > 1.05) return true;
-        const modalImg = document.getElementById('modal-img');
-        if (modalImg) {
-            const transform = window.getComputedStyle(modalImg).getPropertyValue('transform');
-            if (transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)') return true;
-        }
         return false;
     }
 
-    // [핵심] 모든 Input에 대해 확대 여부에 따른 차등 터치 로직 적용
+    // [핵심 엔진] 일반 원터치 삭제 / 확대 더블탭 삭제 구현
     document.querySelectorAll('input').forEach(input => {
-        input.readOnly = true; // 기본 잠금
+        input.readOnly = true; 
         input.addEventListener('touchstart', function(e) {
             const zoomed = isZoomed();
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastTapTime;
 
             if (!zoomed) {
-                // 확대 안 함: 원터치 즉시 입력 모드
+                // 1. 일반 화면: 한 번 툭 치면 즉시 삭제 및 입력
                 this.readOnly = false;
-                this.focus();
-                if (this.id === 'countryInput') showList();
-            } else {
-                // 확대 시: 더블 터치 시에만 삭제 및 입력
-                if (tapLength < 300 && tapLength > 0) {
-                    this.readOnly = false;
-                    this.value = ''; // 즉시 삭제
-                    if (this.id === 'fixedPrice') preciseKrwValue = 0;
+                this.value = ''; 
+                if (this.id === 'fixedPrice') preciseKrwValue = 0;
+                
+                // 포커스 지연 처리 (브라우저 가상 키보드 충돌 방지)
+                setTimeout(() => {
                     this.focus();
                     if (this.id === 'countryInput') showList();
+                }, 10);
+            } else {
+                // 2. 확대 화면: '톡톡' 두 번 빠르게 칠 때만 삭제 및 입력
+                if (tapLength < 300 && tapLength > 0) {
                     e.preventDefault();
+                    this.readOnly = false;
+                    this.value = ''; 
+                    if (this.id === 'fixedPrice') preciseKrwValue = 0;
+                    
+                    setTimeout(() => {
+                        this.focus();
+                        if (this.id === 'countryInput') showList();
+                    }, 50); 
                 } else {
-                    this.readOnly = true; // 첫 터치는 드래그 허용
+                    // 첫 터치는 드래그(비비기) 허용을 위해 잠금 상태 유지
+                    this.readOnly = true;
                 }
             }
             lastTapTime = currentTime;
@@ -281,7 +286,6 @@
     });
 
     document.addEventListener('touchstart', e => { mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchmove', e => { if (isZoomed()) mainTouchStartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', e => {
         if (isZoomed()) return;
         const modal = document.getElementById('img-modal');
@@ -385,7 +389,6 @@
     function loadInputs() { const saved = localStorage.getItem('nanaCalcData'); if (saved) { const data = JSON.parse(saved); applyState(data); if (data.currentLoadedId) { const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === data.currentLoadedId); if(item) { currentLoadedId = data.currentLoadedId; document.getElementById('loaded-text').innerText = "불러옴: " + item.title; document.getElementById('loaded-container').style.display = "flex"; } } } }
     function updateClock() { const now = new Date(); const days = ['일', '월', '화', '수', '목', '금', '토']; const clockEl = document.getElementById('live-clock'); if(clockEl) clockEl.innerHTML = `📅 ${now.toLocaleDateString()} (${days[now.getDay()]}) &nbsp; ⏰ ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`; }
     setInterval(updateClock, 1000);
-    function clearField(el, type) { el.value = ''; if (type) lastField = type; if (type === 'price') preciseKrwValue = 0; if (el.id === 'countryInput') showList(); onInputChange(); }
     function showList() { const listEl = document.getElementById('customList'); listEl.innerHTML = ''; Object.keys(NATION_MAP).forEach(name => { const div = document.createElement('div'); div.innerText = `${name} (${NATION_MAP[name]})`; if (HIGHLIGHTS.includes(name)) div.classList.add('highlight-country'); div.onclick = () => { document.getElementById('countryInput').value = div.innerText; listEl.style.display = 'none'; onInputChange(); }; listEl.appendChild(div); }); listEl.style.display = 'block'; }
     function filterList() { const val = document.getElementById('countryInput').value.toLowerCase(); const items = document.getElementById('customList').querySelectorAll('div'); items.forEach(item => { item.style.display = item.innerText.toLowerCase().includes(val) ? 'block' : 'none'; }); }
     function renderPreviews() { const container = document.getElementById('preview-container'); const saveBtn = document.getElementById('batch-save-btn'); if (currentImgStack.length === 0) { container.innerHTML = "준비된 사진이 없습니다"; saveBtn.style.display = "none"; return; } container.innerHTML = ""; currentImgStack.forEach((img, idx) => { const box = document.createElement('div'); box.className = 'thumb-box'; box.innerHTML = `<img src="${img}"><div class="thumb-del" onclick="removeThumb(${idx})">×</div>`; container.appendChild(box); }); saveBtn.style.display = "block"; }
@@ -397,7 +400,6 @@
     function editItemTitle(e, id) { e.stopPropagation(); let lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); let item = lib.find(i => i.id === id); if (item) { const t = prompt("새 제목", item.title); if (t) { item.title = t; localStorage.setItem('nanaLibrary', JSON.stringify(lib)); renderLibrary(); } } }
     function openModalWithList(event, itemId) { event.stopPropagation(); const lib = JSON.parse(localStorage.getItem('nanaLibrary') || "[]"); const item = lib.find(i => i.id === itemId); if(!item || !item.imgList || item.imgList.length === 0) return; modalImgList = [...item.imgList]; modalImgIdx = 0; currentLoadedId = itemId; showModalImg(); document.getElementById('img-modal').style.display = "flex"; history.pushState({view: 'modal'}, null, window.location.pathname); }
     function closeModal() { const view = document.getElementById('photo-edit-view'); if (view.style.display === 'block') return; document.getElementById('img-modal').style.display = "none"; document.getElementById('modal-img').style.transform = 'scale(1)'; }
-    function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
     window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); };
