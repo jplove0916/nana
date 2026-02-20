@@ -231,11 +231,26 @@
     let calcHistory = []; let historyIndex = -1;
     let isProcessing = false;
 
-    // [의장님 전용: 확대 감지 통합 엔진]
+    // [의장님 전용: 확대 시 입력칸 터치 대응 로직]
+    function setupZoomInputHandler() {
+        const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+        inputs.forEach(el => {
+            el.addEventListener('touchstart', function(e) {
+                // visualViewport.scale이 1.01보다 크면 '확대 상태'로 간주
+                if (window.visualViewport && window.visualViewport.scale > 1.01) {
+                    if (this.id === 'countryInput') return; // 국가 검색은 기본 로직 유지 (필요시 제거)
+                    
+                    this.value = ''; // 1. 기존 값 삭제
+                    if (this.id === 'fixedPrice') preciseKrwValue = 0; // 2. 가격 계산 변수 초기화
+                    this.focus(); // 3. 자판 강제 호출
+                    onInputChange(); // 4. 즉시 계산 반영
+                }
+            }, { passive: true });
+        });
+    }
+
     function isZoomed() {
-        // 1. 브라우저의 비주얼 뷰포트 확대 여부 (가장 확실함)
         if (window.visualViewport && window.visualViewport.scale > 1.01) return true;
-        // 2. 이미지 개별 확대 여부
         const modalImg = document.getElementById('modal-img');
         const transform = window.getComputedStyle(modalImg).getPropertyValue('transform');
         return (transform !== 'none' && transform !== 'matrix(1, 0, 0, 1, 0, 0)');
@@ -246,18 +261,15 @@
     }, {passive: true});
 
     document.addEventListener('touchmove', e => {
-        // 이동 중이라도 확대가 감지되면 시작 위치를 현재 위치로 계속 덮어씌워 
-        // 결과적으로 diffX가 0이 되게 만들어 스와이프를 무력화함
         if (isZoomed()) {
             mainTouchStartX = e.changedTouches[0].screenX;
         }
     }, {passive: true});
 
     document.addEventListener('touchend', e => {
-        if (isZoomed()) return; // 확대 중이면 아예 종료
+        if (isZoomed()) return; 
 
         const modal = document.getElementById('img-modal');
-        const modalImg = document.getElementById('modal-img');
         const isModalOpen = modal.style.display === "flex";
         const isEditView = document.getElementById('photo-edit-view').style.display === "block";
         
@@ -408,7 +420,7 @@
     function updateLast(type) { lastField = type; }
     function openGallery() { document.getElementById('photoGallery').click(); }
     function handleImg(input) { if (input.files) { Array.from(input.files).forEach(file => { const reader = new FileReader(); reader.onload = (e) => { currentImgStack.push(e.target.result); renderPreviews(); }; reader.readAsDataURL(file); }); } }
-    window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); };
+    window.onload = () => { loadInputs(); updateClock(); onInputChange(); updateAddressTitle(); setupZoomInputHandler(); };
 </script>
 </body>
 </html>
